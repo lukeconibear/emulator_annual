@@ -5,4 +5,4 @@
 #$ -l h_vmem=32G
 
 conda activate pangeo_latest
-python create_o3_metric.py
+python popweighted_region.py

@@ -9,8 +9,7 @@ from dask.distributed import Client
 import joblib
 import dask.bag as db
 
-sims = [f't{sim}' for sim in range(1, 56)]
-
+sims = ['t1', 't2', 't3'] # three at a time
 
 def create_ozone_metric(sim):
     """seasonal (maximum 6-month mean), daily maximum, 8-hour, O3 concentration (6mDM8h) for GBD2017"""
