@@ -4,7 +4,7 @@
 - Concatenate simulator data for the year (`concat_simulation_data.ipynb`).  
 - Verification plots of monthly simulation data (`check_simulation_data.ipynb`).  
 - Create ozone seasonal metric from simulator runs (`create_o3_metric.py`). Submitted to HPC (`create_o3_metric.bash`) using Dask for workers viewing worker status on Jupyter Lab.  
-- Create ozone seasonal metric for measurements (`create_o3_metric_measurements.ipynb`).  
+- Create ozone seasonal metric for measurements (`create_o3_metric_measurements.py` and `create_o3_metric_measurements.bash`).  
 - Create emulator input dictionaries (`create_emulator_inputs_outputs_df_crop`).  
 - Emulator cross-validation and sensitivity analysis (`emulator_creation.ipynb`). Interactively computed on a HPC using Dask and Jupyter Lab following instructions [here](https://pangeo.io/setup_guides/hpc.html#).  
 - Emulator predictions for custom inputs (`emulator_predictions.py`). Submitted to HPC (`emulator_predictions.bash`) using Dask for workers viewing worker status on Jupyter Lab. Can submit in batch mode (`emulator_predictions_batch.bash`).    
