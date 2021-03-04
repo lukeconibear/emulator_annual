@@ -11,7 +11,7 @@
 - Regrid custom outputs to population grid of the world (`regrid_to_popgrid.py`). Submitted to HPC (`regrid_to_popgrid.bash`) using Dask for workers viewing worker status on Jupyter Lab. Can submit in batch mode (`regrid_to_popgrid_batch.bash`).  
 - Crop population-weighted output predictions to region's shapefile (`popweighted_region.py`). Submitted to HPC (`popweighted_region.bash`) using Dask for workers viewing worker status on Jupyter Lab. Uses cropping functions (`cutshapefile.py`).  
 - Long-term health impact assessment per configuration (`health_impacts_per_emission_configuration.py`). Submitted to HPC (`health_impacts_per_emission_configuration.bash`) using Dask for workers viewing worker status on Jupyter Lab. Can submit in batch mode (`health_impacts_per_emission_configuration.bash`).  
-- Bottom-up matching of emission configurations that match recent air quality trends (`find_emissions_that_caused_air_quality_change.py` and `find_emissions_that_caused_air_quality_change.bash`).This is then split by region and analysed (`find_emissions_that_caused_air_quality_change.ipynb`).  
+- Bottom-up matching of emission configurations that match recent air quality trends (`find_emissions_that_caused_air_quality_change.ipynb`).  
 - Various emulator plots including emulator evaluation, sensitivity maps, prediction maps, and 2D contour pairs, (`emulator_plots.ipynb`).  
 
 ### Setup Python environment
