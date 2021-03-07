@@ -244,54 +244,49 @@ def health_impact_assessment_pm25(custom_output):
     xx, yy = np.meshgrid(lon, lat)
 
     hia_ncdlri = calc_hia_gemm_ncdlri(pm25, pop_z_2015, dict_ages, dict_bm, dict_gemm)
-    np.savez_compressed(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/PM2_5_DRY/hia_ncdlri_{custom_output}.npz', hia_ncdlri=hia_ncdlri)
+    np.savez_compressed(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/hia_{output}_{custom_output}.npz', hia_ncdlri=hia_ncdlri)
 
     region_list = [49, 102, 132, 225]
-    df_country_hia_ncdlri = shapefile_hia(hia_ncdlri, 'ncdlri', 'country', '/nobackup/earlacoa/health/data/gadm28_adm0.shp', '/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/PM2_5_DRY/', lat, lon, region_list=region_list)
-    df_country_hia_ncdlri.to_csv(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/PM2_5_DRY/df_country_hia_PM2_5_DRY_{custom_output}.csv')
+    df_country_hia_ncdlri = shapefile_hia(hia_ncdlri, 'ncdlri', 'country', '/nobackup/earlacoa/health/data/gadm28_adm0.shp', '/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/', lat, lon, region_list=region_list)
+    df_country_hia_ncdlri.to_csv(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_country_hia_{output}_{custom_output}.csv')
 
-    df_province_hia_ncdlri = shapefile_hia(hia_ncdlri, 'ncdlri', 'province', '/nobackup/earlacoa/health/data/gadm36_CHN_1.shp', '/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/PM2_5_DRY/', lat, lon)
-    df_province_hia_ncdlri.to_csv(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/PM2_5_DRY/df_province_hia_PM2_5_DRY_{custom_output}.csv')
+    df_province_hia_ncdlri = shapefile_hia(hia_ncdlri, 'ncdlri', 'province', '/nobackup/earlacoa/health/data/gadm36_CHN_1.shp', '/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/', lat, lon)
+    df_province_hia_ncdlri.to_csv(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_province_hia_{output}_{custom_output}.csv')
 
     region_list = ['CHN.6.2_1', 'CHN.6.3_1', 'CHN.6.4_1', 'CHN.6.6_1', 'CHN.6.7_1', 'CHN.6.15_1', 'CHN.6.19_1', 'CHN.6.20_1', 'CHN.6.21_1']
-    df_prefecture_hia_ncdlri  = shapefile_hia(hia_ncdlri, 'ncdlri', 'prefecture', '/nobackup/earlacoa/health/data/gadm36_CHN_2.shp', '/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/PM2_5_DRY/', lat, lon, region_list=region_list)
-    df_prefecture_hia_ncdlri.to_csv(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/PM2_5_DRY/df_prefecture_hia_PM2_5_DRY_{custom_output}.csv')
+    df_prefecture_hia_ncdlri  = shapefile_hia(hia_ncdlri, 'ncdlri', 'prefecture', '/nobackup/earlacoa/health/data/gadm36_CHN_2.shp', '/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/', lat, lon, region_list=region_list)
+    df_prefecture_hia_ncdlri.to_csv(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_prefecture_hia_{output}_{custom_output}.csv')
 
 
 def health_impact_assessment_o3(custom_output):
-    with xr.open_dataset('/nobackup/earlacoa/machinelearning/data_annual/wrfout_combined-domains_global_0.25deg_2015_o3_6mDM8h_ppb.nc') as ds:
-        o3_6mDM8h_ctl = ds['__xarray_dataarray_variable__'].values
+    with xr.open_dataset(f'/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}/ds_{custom_output}_{output}_popgrid_0.25deg.nc') as ds:
+        o3_6mDM8h = ds['o3_6mDM8h'].values
         lon = ds.lon.values
         lat = ds.lat.values
 
+
     xx, yy = np.meshgrid(lon, lat)
 
-    with xr.open_dataset('/nobackup/earlacoa/machinelearning/data_annual/predictions/o3/ds_RES1.0_IND1.0_TRA1.0_AGR1.0_ENE1.0_o3_popgrid_0.25deg.nc') as ds:
-        o3_emulator_ctl = ds['o3'].values
-
-    with xr.open_dataset(f'/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}/ds_{custom_output}_{output}_popgrid_0.25deg.nc') as ds:
-        o3_emulator_custom_output = ds['o3'].values
-
-    fraction = o3_emulator_custom_output / o3_emulator_ctl
-    o3_6mDM8h_custom_output = fraction * o3_6mDM8h_ctl
-
-    hia_o3 = calc_hia_gbd2017_o3(o3_6mDM8h_custom_output, pop_z_2015, dict_ages, dict_bm, dict_o3)
-    np.savez_compressed(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/o3/hia_o3_{custom_output}.npz', hia_o3=hia_o3)
+    hia_o3 = calc_hia_gbd2017_o3(o3_6mDM8h, pop_z_2015, dict_ages, dict_bm, dict_o3)
+    np.savez_compressed(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/hia_{output}_{custom_output}.npz', hia_o3=hia_o3)
 
     region_list = [49, 102, 132, 225]
-    df_country_hia_o3 = shapefile_hia(hia_o3, 'copd', 'country', '/nobackup/earlacoa/health/data/gadm28_adm0.shp', '/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/o3/', lat, lon, region_list=region_list)
-    df_country_hia_o3.to_csv(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/o3/df_country_hia_o3_{custom_output}.csv')
+    df_country_hia_o3 = shapefile_hia(hia_o3, 'copd', 'country', '/nobackup/earlacoa/health/data/gadm28_adm0.shp', '/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/', lat, lon, region_list=region_list)
+    df_country_hia_o3.to_csv(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_country_hia_{output}_{custom_output}.csv')
 
-    df_province_hia_o3 = shapefile_hia(hia_o3, 'copd', 'province', '/nobackup/earlacoa/health/data/gadm36_CHN_1.shp', '/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/o3/', lat, lon)
-    df_province_hia_o3.to_csv(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/o3/df_province_hia_o3_{custom_output}.csv')
+    df_province_hia_o3 = shapefile_hia(hia_o3, 'copd', 'province', '/nobackup/earlacoa/health/data/gadm36_CHN_1.shp', '/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/', lat, lon)
+    df_province_hia_o3.to_csv(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_province_hia_{output}_{custom_output}.csv')
 
     region_list = ['CHN.6.2_1', 'CHN.6.3_1', 'CHN.6.4_1', 'CHN.6.6_1', 'CHN.6.7_1', 'CHN.6.15_1', 'CHN.6.19_1', 'CHN.6.20_1', 'CHN.6.21_1']
-    df_prefecture_hia_o3  = shapefile_hia(hia_o3, 'copd', 'prefecture', '/nobackup/earlacoa/health/data/gadm36_CHN_2.shp', '/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/o3/', lat, lon, region_list=region_list)
-    df_prefecture_hia_o3.to_csv(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/o3/df_prefecture_hia_o3_{custom_output}.csv')
+    df_prefecture_hia_o3  = shapefile_hia(hia_o3, 'copd', 'prefecture', '/nobackup/earlacoa/health/data/gadm36_CHN_2.shp', '/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/', lat, lon, region_list=region_list)
+    df_prefecture_hia_o3.to_csv(f'/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_prefecture_hia_{output}_{custom_output}.csv')
 
 # -----------
 # import data
-import_npz('/nobackup/earlacoa/health/data/population-count-0.25deg.npz', globals())
+with np.load('/nobackup/earlacoa/health/data/population-count-0.25deg.npz') as ds:
+    pop_z_2015 = ds['pop_z_2015']
+    pop_xx = ds['pop_yy']
+    pop_yy = ds['pop_yy']
 
 with np.load('/nobackup/earlacoa/health/data/GBD2017_population_age_fraction_global_2015_array_0.25deg.npz') as file_age:
     dict_ages = dict(zip([key for key in file_age], [file_age[key].astype('float32') for key in file_age]))
@@ -330,8 +325,8 @@ def main():
     cluster = SGECluster(
         interface='ib0',
         walltime='01:00:00',
-        memory=f'128 G',
-        resource_spec=f'h_vmem=128G',
+        memory=f'32 G',
+        resource_spec=f'h_vmem=32G',
         scheduler_options={
             'dashboard_address': ':5757',
         },
@@ -361,12 +356,12 @@ def main():
     print(f'custom outputs remaining for {output}: {len(custom_outputs_remaining)}')
 
     # dask bag and process
-    custom_outputs_remaining = custom_outputs_remaining[0:500] # run in 500 chunks over 30 cores, each chunk taking 2 minutes
+    custom_outputs_remaining = custom_outputs_remaining[0:5] # run in 5 chunks over 30 cores, each chunk taking 2 minutes
     print(f'predicting for {len(custom_outputs_remaining)} custom outputs ...')
     bag_custom_outputs = db.from_sequence(custom_outputs_remaining, npartitions=n_workers)
     if output == 'PM2_5_DRY':
         bag_custom_outputs.map(health_impact_assessment_pm25).compute()
-    elif output == 'o3':
+    elif output == 'o3_6mDM8h':
         bag_custom_outputs.map(health_impact_assessment_o3).compute()
 
     time_end = time.time() - time_start

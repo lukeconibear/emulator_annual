@@ -8,9 +8,9 @@ import dask.bag as db
 from dask_jobqueue import SGECluster
 from dask.distributed import Client
 
-with xr.open_dataset('/nobackup/earlacoa/health/data/gpw_v4_population_count_adjusted_to_2015_unwpp_country_totals_rev11_2015_15_min.nc') as ds:
-    pop_2015 = ds['pop']
-    
+with xr.open_dataset('/nobackup/earlacoa/health/data/gpw_v4_population_count_rev11_2020_0.25deg_crop.nc') as ds: # the right size grid even though for 2020 - 540,1440
+    pop_2015 = ds['pop']    
+
 
 pop_lat = pop_2015['lat'].values
 pop_lon = pop_2015['lon'].values

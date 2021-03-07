@@ -4,5 +4,6 @@
 #$ -pe smp 1
 #$ -l h_vmem=128G
 
+
 conda activate pangeo_latest
 python health_impacts_per_emission_configuration.py
