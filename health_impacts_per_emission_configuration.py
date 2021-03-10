@@ -487,8 +487,15 @@ dict_gemm.update(dict_gemm_2)
 
 def main():
     # dask cluster and client
+    if output == 'PM2_5_DRY':
+        n_jobs = 20
+        n_outputs = 1000
+    elif output == 'o3_6mDM8h':
+        n_jobs = 20
+        n_outputs = 2000
+    
+    
     n_processes = 1
-    n_jobs = 20
     n_workers = n_processes * n_jobs
 
     cluster = SGECluster(
@@ -534,7 +541,7 @@ def main():
 
     # dask bag and process
     # run in 10 chunks over 10 cores, each chunk taking 2 minutes
-    custom_outputs_remaining = custom_outputs_remaining[0:2000] 
+    custom_outputs_remaining = custom_outputs_remaining[0:n_outputs] 
     print(f"predicting for {len(custom_outputs_remaining)} custom outputs ...")
     bag_custom_outputs = db.from_sequence(
         custom_outputs_remaining, npartitions=n_workers
@@ -560,4 +567,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -14,7 +14,12 @@ from dask_jobqueue import SGECluster
 from dask.distributed import Client
 
 output = "PM2_5_DRY"
-# 'PM2_5_DRY', 'o3_6mDM8h'
+#output = "o3_6mDM8h"
+
+if output == "o3_6mDM8h_ppb":
+    emulator_output = "o3_6mDM8h"
+else:
+    emulator_output = output
 
 df_obs = pd.read_csv(
     f"/nobackup/earlacoa/machinelearning/data_annual/china_measurements_corrected/df_obs_o3_6mDM8h_ppb_PM2_5_DRY.csv",
@@ -22,111 +27,86 @@ df_obs = pd.read_csv(
     parse_dates=True,
 )
 
-outputs = ["o3_6mDM8h_ppb", "PM2_5_DRY"]
-obs_files = glob.glob(
-    f"/nobackup/earlacoa/machinelearning/data_annual/china_measurements_corrected/*.nc"
-)
+# stations left
+obs_files = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/china_measurements_corrected/*.nc")
+obs_files = [f"{obs_file[-8:-3]}" for obs_file in obs_files]
+obs_files_completed = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/2015-2017/*{output}*")
+obs_files_completed = [f"{item[-12:-7]}" for item in obs_files_completed]
+obs_files_remaining_set = set(obs_files) - set(obs_files_completed)
+obs_files_remaining = [item for item in obs_files_remaining_set]
+print(f"custom outputs remaining for {output}: {len(obs_files_remaining)}")
 
-matrix_stacked = np.array(
-    np.meshgrid(
-        np.linspace(0.2, 1.3, 12),  # np.linspace(0.0, 1.5, 16) for 0.0-1.5
-        np.linspace(0.2, 1.3, 12),  # np.linspace(0.2, 1.3, 12) for 0.2-1.3
-        np.linspace(
-            0.2, 1.3, 12
-        ),  # removing edges of parameter space 0.0, 0.1, 1.4, 1.5
-        np.linspace(0.2, 1.3, 12),
-        np.linspace(0.2, 1.3, 12),
-    )
-).T.reshape(-1, 5)
+station_id = obs_files_remaining[0]
+lat = df_obs.loc[df_obs.station_id == station_id].station_lat.unique()[0]
+lon = df_obs.loc[df_obs.station_id == station_id].station_lon.unique()[0]
 
 obs_change_abs = {}
 obs_change_per = {}
 baselines = {}
 targets = {}
 target_diffs = {}
-station_diffs_abs = {}
-station_diffs_per = {}
 
+change_per = 100 * ((
+    df_obs.loc[df_obs.station_id == station_id][output]["2017"].values[0]
+    / df_obs.loc[df_obs.station_id == station_id][output]["2015"].values[0]
+) - 1)
+change_abs = (
+    df_obs.loc[df_obs.station_id == station_id][output]["2017"].values[0]
+    - df_obs.loc[df_obs.station_id == station_id][output]["2015"].values[0]
+)
 
-def targets_per_station(output, obs_file):
-    station_id = obs_file[76:-3]
-    lat = df_obs.loc[df_obs.station_id == station_id].station_lat.unique()[0]
-    lon = df_obs.loc[df_obs.station_id == station_id].station_lon.unique()[0]
+obs_change_abs.update({f"{station_id}_{output}": change_abs})
+obs_change_per.update({f"{station_id}_{output}": change_per})
 
-    change_per = 100 * (
-        (
-            df_obs.loc[df_obs.station_id == station_id][output]["2017"].values[0]
-            / df_obs.loc[df_obs.station_id == station_id][output]["2015"].values[0]
-        )
-        - 1
+with xr.open_dataset(
+    f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}/ds_RES1.0_IND1.0_TRA1.0_AGR1.0_ENE1.0_{emulator_output}_popgrid_0.25deg.nc"
+)[emulator_output] as ds:
+    baseline = (
+        ds.sel(lat=lat, method="nearest").sel(lon=lon, method="nearest").values
     )
-    change_abs = (
-        df_obs.loc[df_obs.station_id == station_id][output]["2017"].values[0]
-        - df_obs.loc[df_obs.station_id == station_id][output]["2015"].values[0]
-    )
 
-    obs_change_abs.update({f"{station_id}_{output}": change_abs})
-    obs_change_per.update({f"{station_id}_{output}": change_per})
+baselines.update({f"{station_id}_{output}": baseline})
 
-    if output == "o3_6mDM8h_ppb":
-        emulator_output = "o3_6mDM8h"
-    else:
-        emulator_output = output
+target_abs = baseline + change_abs
+target_per = baseline * (1 + (change_per / 100))
+target = np.mean([target_abs, target_per])
+targets.update({f"{station_id}_{output}": target})
 
+target_diffs.update({f"{station_id}_{output}": target - baseline}) 
+    
+       
+def filter_emission_configs(emission_config):
+    station_diffs_abs = {}
+    station_diffs_per = {}
+    target_diffs_abs = {}
+    target_diffs_per = {}
+    
+    inputs = emission_config.reshape(-1, 5)
+    filename = f"RES{inputs[0][0]:.1f}_IND{inputs[0][1]:.1f}_TRA{inputs[0][2]:.1f}_AGR{inputs[0][3]:.1f}_ENE{inputs[0][4]:.1f}"
     with xr.open_dataset(
-        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}/ds_RES1.0_IND1.0_TRA1.0_AGR1.0_ENE1.0_{emulator_output}_popgrid_0.25deg.nc"
+        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}/ds_{filename}_{emulator_output}_popgrid_0.25deg.nc"
     )[emulator_output] as ds:
-        baseline = (
+        prediction = (
             ds.sel(lat=lat, method="nearest").sel(lon=lon, method="nearest").values
         )
 
-    baselines.update({f"{station_id}_{output}": baseline})
+    target_diff_abs = targets[f"{station_id}_{output}"] - prediction
+    target_diff_per = (100 * (prediction / targets[f"{station_id}_{output}"])) - 100
 
-    target_abs = baseline + change_abs
-    target_per = baseline * (1 + (change_per / 100))
-    target = np.mean([target_abs, target_per])
-    targets.update({f"{station_id}_{output}": target})
-
-    target_diffs.update({f"{station_id}_{output}": target - baseline})
-
-    target_diffs_abs = {}
-    target_diffs_per = {}
-
-    for matrix in matrix_stacked:
-        inputs = matrix.reshape(-1, 5)
-        filename = f"RES{inputs[0][0]:.1f}_IND{inputs[0][1]:.1f}_TRA{inputs[0][2]:.1f}_AGR{inputs[0][3]:.1f}_ENE{inputs[0][4]:.1f}"
-        with xr.open_dataset(
-            f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}/ds_{filename}_{emulator_output}_popgrid_0.25deg.nc"
-        )[emulator_output] as ds:
-            prediction = (
-                ds.sel(lat=lat, method="nearest").sel(lon=lon, method="nearest").values
-            )
-
-        target_diff_abs = targets[f"{station_id}_{output}"] - prediction
-        target_diff_per = (100 * (prediction / targets[f"{station_id}_{output}"])) - 100
-
-        if abs(target_diff_per) < 1:  # +/- 1% of target
-            target_diffs_abs.update({filename: target_diff_abs})
-            target_diffs_per.update({filename: target_diff_per})
+    if abs(target_diff_per) < 1:  # +/- 1% of target
+        target_diffs_abs.update({filename: target_diff_abs})
+        target_diffs_per.update({filename: target_diff_per})
 
     station_diffs_abs.update({f"{station_id}_{output}": target_diffs_abs})
     station_diffs_per.update({f"{station_id}_{output}": target_diffs_per})
 
-    return (
-        obs_change_abs,
-        obs_change_per,
-        baselines,
-        targets,
-        target_diffs,
-        station_diffs_per,
-        station_diffs_abs,
-    )
+    return station_diffs_abs, station_diffs_per
 
 
 def main():
     # dask cluster and client
     n_processes = 1
-    n_jobs = 35
+    n_jobs = 20
     n_workers = n_processes * n_jobs
 
     cluster = SGECluster(
@@ -153,39 +133,51 @@ def main():
 
     time_start = time.time()
 
-    # process targets for each station
-    obs_files = glob.glob(
-        f"/nobackup/earlacoa/machinelearning/data_annual/china_measurements_corrected/*.nc"
-    )
-    obs_files = [f"{item[-8:-3]}" for item in obs_files]
-    obs_files_completed = glob.glob(
-        f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/2015-2017/*{output}*"
-    )
-    obs_files_completed = [f"{item[-12:-7]}" for item in obs_files_completed]
-    obs_files_remaining_set = set(obs_files) - set(obs_files_completed)
-    obs_files_remaining = [item for item in obs_files_remaining_set]
-    print(f"custom outputs remaining for {output}: {len(obs_files_remaining)}")
+    # dask bag over emission_configs
+    emission_configs = np.array(
+        np.meshgrid(
+            np.linspace(0.2, 1.3, 12),  # np.linspace(0.0, 1.5, 16) for 0.0-1.5
+            np.linspace(0.2, 1.3, 12),  # np.linspace(0.2, 1.3, 12) for 0.2-1.3
+            np.linspace(0.2, 1.3, 12),  # removing edges of parameter space 0.0, 0.1, 1.4, 1.5
+            np.linspace(0.2, 1.3, 12),
+            np.linspace(0.2, 1.3, 12),
+        )
+    ).T.reshape(-1, 5)
+    
+    print(f"predicting over {len(emission_configs)} emission configs for {station_id} ...")   
+    bag_emission_configs = db.from_sequence(emission_configs, npartitions=n_workers)
+    results = bag_emission_configs.map(filter_emission_configs).compute()   
+    
+    station_diffs_abs = [result[0] for result in results]
+    station_diffs_per = [result[1] for result in results]
+    key = [key for key in baselines.keys()][0]
+    station_diffs_abs = [station_diff_abs for station_diff_abs in station_diffs_abs if len(station_diff_abs[key]) > 0]
+    station_diffs_per = [station_diff_per for station_diff_per in station_diffs_per if len(station_diff_per[key]) > 0]
+    
+    merged_per = {}
+    for station_diff_per in station_diffs_per:
+        merged_per = {**merged_per, **station_diff_per[key]}
 
-    # dask bag and process
-    obs_files_remaining = obs_files_remaining[
-        0:2
-    ]  # run in 5,000 chunks over 30 cores, each chunk taking 2 minutes
-    print(f"predicting for {len(obs_files_remaining)} custom outputs ...")
-    bag_obs_files = db.from_sequence(obs_files_remaining, npartitions=n_workers)
-    results = bag_obs_files.map(regrid_to_pop).compute()
+
+    merged_abs = {}
+    for station_diff_abs in station_diffs_abs:
+        merged_abs = {**merged_abs, **station_diff_abs[key]}
+
+
+    station_diffs_per = {key: merged_per}   
+    station_diffs_abs = {key: merged_abs}
+    
     print("saving ...")
-    joblib.dump(
-        results,
-        f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/2015-2017/all_dicts_{output}_{station_id}.joblib",
-    )
+    joblib.dump(obs_change_abs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/2015-2017/obs_change_abs_{output}_{station_id}.joblib")
+    joblib.dump(obs_change_per, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/2015-2017/obs_change_per_{output}_{station_id}.joblib")
+    joblib.dump(baselines, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/2015-2017/baselines_{output}_{station_id}.joblib")
+    joblib.dump(targets, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/2015-2017/targets_{output}_{station_id}.joblib")
+    joblib.dump(target_diffs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/2015-2017/target_diffs_{output}_{station_id}.joblib")
+    joblib.dump(station_diffs_abs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/2015-2017/station_diffs_abs_{output}_{station_id}.joblib")
+    joblib.dump(station_diffs_per, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/2015-2017/station_diffs_per_{output}_{station_id}.joblib")
 
     time_end = time.time() - time_start
-    print(
-        f"completed in {time_end:0.2f} seconds, or {time_end / 60:0.2f} minutes, or {time_end / 3600:0.2f} hours"
-    )
-    print(
-        f"average time per custom output is {time_end / len(obs_files_remaining):0.2f} seconds"
-    )
+    print(f"completed in {time_end:0.2f} seconds, or {time_end / 60:0.2f} minutes, or {time_end / 3600:0.2f} hours")
 
     client.close()
     cluster.close()
