@@ -6,7 +6,7 @@
 current=$(qsub health_impacts_per_emission_configuration.bash)
 echo $current
 
-for id in {2..300}; do
+for id in {2..100}; do
   current_id=$(echo $current | tr -d -c 0-9)
   next=$(qsub -hold_jid $current_id health_impacts_per_emission_configuration.bash)
   echo $next

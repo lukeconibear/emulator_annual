@@ -3,80 +3,23 @@ import os
 import time
 import sys
 import glob
+import joblib
 import xarray as xr
 import numpy as np
 import dask.bag as db
 import geopandas as gpd
 import pandas as pd
-from rasterio import features
-from affine import Affine
 from dask_jobqueue import SGECluster
 from dask.distributed import Client
+from numba import njit, typeof, typed, types, jit
 
 output = "PM2_5_DRY"
-# 'PM2_5_DRY', 'o3_6mDM8h'
+#output = "o3_6mDM8h"
 
 # -----------
 # functions
-def import_npz(npz_file, namespace):
-    data = np.load(npz_file)
-    for var in data:
-        if data[var].dtype == np.dtype("float64"):
-            namespace[var] = data[var].astype("float32")
-        else:
-            namespace[var] = data[var]
-
-
-def find_nearest(array, value):
-    idx = (np.abs(array - value)).argmin()
-    return idx
-
-
-def transform_from_latlon(lat, lon):
-    lat = np.asarray(lat)
-    lon = np.asarray(lon)
-    trans = Affine.translation(lon[0], lat[0])
-    scale = Affine.scale(lon[1] - lon[0], lat[1] - lat[0])
-    return trans * scale
-
-
-def rasterize(
-    shapes, coords, latitude="latitude", longitude="longitude", fill=np.nan, **kwargs
-):
-    transform = transform_from_latlon(coords[latitude], coords[longitude])
-    out_shape = (len(coords[latitude]), len(coords[longitude]))
-    raster = features.rasterize(
-        shapes,
-        out_shape=out_shape,
-        fill=fill,
-        transform=transform,
-        dtype=float,
-        **kwargs,
-    )
-    spatial_coords = {latitude: coords[latitude], longitude: coords[longitude]}
-    return xr.DataArray(raster, coords=spatial_coords, dims=(latitude, longitude))
-
-
-def shapefile_hia(hia, measure, region, shapefile_file, hia_path, lat, lon, **kwargs):
-    shp = gpd.read_file(shapefile_file)
-    if region == "country":
-        ids = list(shp["ID_0"].values)
-        names = list(shp["NAME_ENGLI"].values)
-    elif (region == "state") or (region == "province"):
-        ids = list(shp["GID_1"].values)
-        names = list(shp["NAME_1"].values)
-    elif (region == "city") or (region == "prefecture"):
-        ids = list(shp["GID_2"].values)
-        names = list(shp["NAME_2"].values)
-
-    names = [name.replace(" ", "_") for name in names]
-    df = pd.DataFrame(np.asarray(ids))
-    df.columns = ["id"]
-    df["name"] = pd.Series(np.asarray(names))
-    region_list = kwargs.get("region_list", None)
-    if region_list != None:
-        df = df.loc[df["id"].isin(region_list), :]
-        ids = np.array(region_list)
+def shapefile_hia(hia, measure, clips, hia_path, lat, lon, regions):
+    df = pd.DataFrame({'name': regions})
 
     hia_list = [
         key
@@ -94,75 +37,44 @@ def shapefile_hia(hia, measure, region, shapefile_file, hia_path, lat, lon, **kw
     # loop through variables and regions
     for variable in hia_list:
         df[variable] = pd.Series(np.nan)
-        for i in ids:
-            # create list of tuples (shapely.geometry, id) to allow for many different polygons within a .shp file
-            if region == "country":
-                shapes = [
-                    (shape, n) for n, shape in enumerate(shp[shp.ID_0 == i].geometry)
-                ]
-            elif (region == "state") or (region == "province"):
-                shapes = [
-                    (shape, n) for n, shape in enumerate(shp[shp.GID_1 == i].geometry)
-                ]
-            elif (region == "city") or (region == "prefecture"):
-                shapes = [
-                    (shape, n) for n, shape in enumerate(shp[shp.GID_2 == i].geometry)
-                ]
-
-            # create dataarray for each variable
+        for region in regions:
             da = xr.DataArray(hia[variable], coords=[lat, lon], dims=["lat", "lon"])
-            # create the clip for the shapefile
-            clip = rasterize(shapes, da.coords, longitude="lon", latitude="lat")
-            # clip the dataarray
-            da_clip = da.where(clip == 0, other=np.nan)
-            # assign to dataframe
+            clip = clips[region]
+            da_clip = da.where(clip==0, other=np.nan) # didn't convert the values in this version to be consistent
+
             if variable == "pop":
-                df.loc[df.id == i, variable] = np.nansum(da_clip.values)
+                df.loc[df.name == region, variable] = np.nansum(da_clip.values)
 
             elif "popweighted" in variable:
-                df.loc[df.id == i, variable] = (
-                    np.nansum(da_clip.values) / df.loc[df.id == i, "pop"].values[0]
+                df.loc[df.name == region, variable] = (
+                    np.nansum(da_clip.values) / df.loc[df.name == region, "pop"].values[0]
                 )
 
             elif "rate" not in variable:
-                df.loc[df.id == i, variable] = np.nansum(da_clip.values)
+                df.loc[df.name == region, variable] = np.nansum(da_clip.values)
 
             else:
-                df.loc[df.id == i, variable] = np.nanmean(da_clip.values)
+                df.loc[df.name == region, variable] = np.nanmean(da_clip.values)
 
     return df
 
 
-def outcome_per_age(
-    pop_z_2015, dict_ages, age, dict_bm, outcome, metric, pm25_clipped, dict_gemm
-):
-    return (
-        pop_z_2015
-        * dict_ages["cf_age_fraction_" + age + "_grid"]
-        * (
-            dict_bm["i_" + outcome + "_ncd_both_" + metric + "_" + age]
-            + dict_bm["i_" + outcome + "_lri_both_" + metric + "_" + age]
-        )
-        * (
-            1
-            - 1
-            / (
-                np.exp(
-                    np.log(
-                        1 + pm25_clipped / dict_gemm["gemm_health_nonacc_alpha_" + age]
-                    )
-                    / (
-                        1
-                        + np.exp(
-                            (dict_gemm["gemm_health_nonacc_mu_" + age] - pm25_clipped)
-                            / dict_gemm["gemm_health_nonacc_pi_" + age]
-                        )
-                    )
-                    * dict_gemm["gemm_health_nonacc_theta_" + age]
-                )
-            )
-        )
-    )
+def dict_to_typed_dict(dict_normal):
+    """convert to typed dict for numba"""
+    if len(dict_normal[next(iter(dict_normal))].shape) == 1:
+        value_shape = types.f4[:]
+    elif len(dict_normal[next(iter(dict_normal))].shape) == 2:
+        value_shape = types.f4[:, :]
+
+    typed_dict = typed.Dict.empty(types.string, value_shape)
+    for key, value in dict_normal.items():
+        typed_dict[key] = value
+
+    return typed_dict
+
+
+def outcome_per_age_ncdlri(pop_z_2015, age_grid, age, bm_ncd, bm_lri, outcome, metric, pm25_clipped, alpha, mu, pi, theta):
+    return (pop_z_2015 * age_grid * (bm_ncd + bm_lri) * (1 - 1 / (np.exp(np.log(1 + pm25_clipped / alpha) / (1 + np.exp((mu - pm25_clipped) / pi)) * theta))))
 
 
 def outcome_total(hia_ncdlri, outcome, metric):
@@ -170,26 +82,26 @@ def outcome_total(hia_ncdlri, outcome, metric):
         [
             value
             for key, value in hia_ncdlri.items()
-            if outcome + "_ncdlri_" + metric in key
+            if f"{outcome}_ncdlri_{metric}" in key
         ]
     )
 
 
 def dalys_age(hia_ncdlri, metric, age):
     return (
-        hia_ncdlri["yll_ncdlri_" + metric + "_" + age]
-        + hia_ncdlri["yld_ncdlri_" + metric + "_" + age]
+        hia_ncdlri[f"yll_ncdlri_{metric}_{age}"]
+        + hia_ncdlri[f"yld_ncdlri_{metric}_{age}"]
     )
 
 
 def dalys_total(hia_ncdlri, metric):
     return sum(
-        [value for key, value in hia_ncdlri.items() if "dalys_ncdlri_" + metric in key]
+        [value for key, value in hia_ncdlri.items() if f"dalys_ncdlri_{metric}" in key]
     )
 
 
 def rates_total(hia_ncdlri, outcome, metric, pop_z_2015):
-    return hia_ncdlri[outcome + "_ncdlri_" + metric + "_total"] * (100000 / pop_z_2015)
+    return hia_ncdlri[f"{outcome}_ncdlri_{metric}_total"] * (100000 / pop_z_2015)
 
 
 def calc_hia_gemm_ncdlri(pm25, pop_z_2015, dict_ages, dict_bm, dict_gemm):
@@ -227,70 +139,62 @@ def calc_hia_gemm_ncdlri(pm25, pop_z_2015, dict_ages, dict_bm, dict_gemm):
                 # outcome_per_age
                 hia_ncdlri.update(
                     {
-                        outcome
-                        + "_ncdlri_"
-                        + metric
-                        + "_"
-                        + age: outcome_per_age(
+                        f"{outcome}_ncdlri_{metric}_{age}": outcome_per_age_ncdlri(
                             pop_z_2015,
-                            dict_ages,
+                            dict_ages[f"cf_age_fraction_{age}_grid"],
                             age,
-                            dict_bm,
+                            dict_bm[f"i_{outcome}_ncd_both_{metric}_{age}"],
+                            dict_bm[f"i_{outcome}_lri_both_{metric}_{age}"],
                             outcome,
                             metric,
                             pm25_clipped,
-                            dict_gemm,
+                            dict_gemm[f"gemm_health_nonacc_alpha_{age}"],
+                            dict_gemm[f"gemm_health_nonacc_mu_{age}"],
+                            dict_gemm[f"gemm_health_nonacc_pi_{age}"],
+                            dict_gemm[f"gemm_health_nonacc_theta_{age}"]
                         )
                     }
                 )
 
             # outcome_total
             hia_ncdlri.update(
-                {
-                    outcome
-                    + "_ncdlri_"
-                    + metric
-                    + "_total": outcome_total(hia_ncdlri, outcome, metric)
-                }
+                    {f"{outcome}_ncdlri_{metric}_total": outcome_total(hia_ncdlri, outcome, metric)}
             )
 
     for metric in metrics:
         for age in ages:
             # dalys_age
             hia_ncdlri.update(
-                {
-                    "dalys_ncdlri_"
-                    + metric
-                    + "_"
-                    + age: dalys_age(hia_ncdlri, metric, age)
-                }
+                    {f"dalys_ncdlri_{metric}_{age}": dalys_age(hia_ncdlri, metric, age)}
             )
 
         # dalys_total
         hia_ncdlri.update(
-            {"dalys_ncdlri_" + metric + "_total": dalys_total(hia_ncdlri, metric)}
+            {f"dalys_ncdlri_{metric}_total": dalys_total(hia_ncdlri, metric)}
         )
 
     for outcome in ["mort", "yll", "yld", "dalys"]:
         for metric in metrics:
             # rates_total
             hia_ncdlri.update(
-                {
-                    outcome
-                    + "_rate_ncdlri_"
-                    + metric
-                    + "_total": rates_total(hia_ncdlri, outcome, metric, pop_z_2015)
-                }
+                    {f"{outcome}_rate_ncdlri_{metric}_total": rates_total(hia_ncdlri, outcome, metric, pop_z_2015)}
             )
 
     return hia_ncdlri
 
 
-def calc_hia_gbd2017_o3(o3, pop_z_2015, dict_ages, dict_bm, dict_o3):
+def create_attribute_fraction(value, dict_af):
+    return dict_af[f'{value}']
+
+
+create_attribute_fraction = np.vectorize(create_attribute_fraction)
+
+
+def calc_hia_gbd2017_o3(o3, pop_z_2015, dict_ages, dict_bm, dict_af):
     """ health impact assessment using the GBD2017 function for O3 """
     """ inputs are exposure to annual-mean, daily maximum, 8-hour, O3 concentrations (ADM8h) on a global grid at 0.25 degrees """
     """ estimated for all ages individually """
-    """ call example: calc_hia_gbd2017_o3(o3_ctl, pop_z_2015, dict_ages, dict_bm, dict_o3) """
+    """ call example: calc_hia_gbd2017_o3(o3_ctl, pop_z_2015, dict_ages, dict_bm, dict_af) """
     # inputs
     ages = [
         "25_29",
@@ -314,23 +218,12 @@ def calc_hia_gbd2017_o3(o3, pop_z_2015, dict_ages, dict_bm, dict_o3):
     hia_o3.update({"o3_popweighted": pop_z_2015 * o3})
 
     # attributable fraction
-    dict_af = {}
+    o3_rounded = np.nan_to_num(np.around(o3, 1)) # 1dp for the nearest af
+    af = {}
     for metric in metrics:
-        dict_af.update(
-            {
-                metric: np.array(
-                    [
-                        [
-                            dict_o3["af_o3_copd_" + metric][
-                                find_nearest(dict_o3["o3_conc"], o3[lat][lon])
-                            ]
-                            for lon in range(o3.shape[1])
-                        ]
-                        for lat in range(o3.shape[0])
-                    ]
-                )
-            }
-        )
+        af.update({
+            metric: create_attribute_fraction(o3_rounded, dict_af[metric])
+        })
 
     for outcome in outcomes:
         for metric in metrics:
@@ -338,28 +231,21 @@ def calc_hia_gbd2017_o3(o3, pop_z_2015, dict_ages, dict_bm, dict_o3):
                 # mort, yll, yld - age
                 hia_o3.update(
                     {
-                        outcome
-                        + "_copd_"
-                        + metric
-                        + "_"
-                        + age: pop_z_2015
-                        * dict_ages["cf_age_fraction_" + age + "_grid"]
-                        * dict_bm["i_" + outcome + "_copd_both_" + metric + "_" + age]
-                        * dict_af[metric]
+                        f"{outcome}_copd_{metric}_{age}": pop_z_2015
+                        * dict_ages[f"cf_age_fraction_{age}_grid"]
+                        * dict_bm[f"i_{outcome}_copd_both_{metric}_{age}"]
+                        * af[metric]
                     }
                 )
 
             # mort, yll, yld - total
             hia_o3.update(
                 {
-                    outcome
-                    + "_copd_"
-                    + metric
-                    + "_total": sum(
+                    f"{outcome}_copd_{metric}_total": sum(
                         [
                             value
                             for key, value in hia_o3.items()
-                            if outcome + "_copd_" + metric in key
+                            if f"{outcome}_copd_{metric}" in key
                         ]
                     )
                 }
@@ -370,23 +256,18 @@ def calc_hia_gbd2017_o3(o3, pop_z_2015, dict_ages, dict_bm, dict_o3):
         for age in ages:
             hia_o3.update(
                 {
-                    "dalys_copd_"
-                    + metric
-                    + "_"
-                    + age: hia_o3["yll_copd_" + metric + "_" + age]
-                    + hia_o3["yld_copd_" + metric + "_" + age]
+                    f"dalys_copd_{metric}_{age}": hia_o3[f"yll_copd_{metric}_{age}"]
+                    + hia_o3[f"yld_copd_{metric}_{age}"]
                 }
             )
         # dalys - total
         hia_o3.update(
             {
-                "dalys_copd_"
-                + metric
-                + "_total": sum(
+                f"dalys_copd_{metric}_total": sum(
                     [
                         value
                         for key, value in hia_o3.items()
-                        if "dalys_copd_" + metric in key
+                        if f"dalys_copd_{metric}" in key
                     ]
                 )
             }
@@ -397,15 +278,13 @@ def calc_hia_gbd2017_o3(o3, pop_z_2015, dict_ages, dict_bm, dict_o3):
         for metric in metrics:
             hia_o3.update(
                 {
-                    outcome
-                    + "_rate_copd_"
-                    + metric
-                    + "_total": hia_o3[outcome + "_copd_" + metric + "_total"]
-                    * (100000 / pop_z_2015)
+                    f"{outcome}_rate_copd_{metric}_total": hia_o3[f"{outcome}_copd_{metric}_total"] 
+                    * (100_000 / pop_z_2015)
                 }
             )
 
     return hia_o3
+
 
 
 def health_impact_assessment_pm25(custom_output):
@@ -424,16 +303,18 @@ def health_impact_assessment_pm25(custom_output):
         hia_ncdlri=hia_ncdlri,
     )
 
-    region_list = [49, 102, 132, 225]
+    countries = ['China', 'Hong Kong', 'Macao', 'Taiwan']
+    provinces = ['Anhui', 'Beijing', 'Chongqing', 'Fujian', 'Gansu', 'Guangdong', 'Guangxi', 'Guizhou', 'Hainan', 'Hebei', 'Heilongjiang', 'Henan', 'Hubei', 'Hunan', 'Jiangsu', 'Jiangxi', 'Jilin', 'Liaoning', 'Nei Mongol', 'Ningxia Hui', 'Qinghai', 'Shaanxi', 'Shandong', 'Shanghai', 'Shanxi', 'Sichuan', 'Tianjin', 'Xinjiang Uygur', 'Xizang', 'Yunnan', 'Zhejiang']
+    prefectures = ['Dongguan', 'Foshan', 'Guangzhou', 'Huizhou', 'Jiangmen', 'Shenzhen', 'Zhaoqing', 'Zhongshan', 'Zhuhai']
+    
     df_country_hia_ncdlri = shapefile_hia(
         hia_ncdlri,
         "ncdlri",
-        "country",
-        "/nobackup/earlacoa/health/data/gadm28_adm0.shp",
-        "/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
+        clips,
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
         lat,
         lon,
-        region_list=region_list,
+        countries,
     )
     df_country_hia_ncdlri.to_csv(
         f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_country_hia_{output}_{custom_output}.csv"
@@ -442,36 +323,24 @@ def health_impact_assessment_pm25(custom_output):
     df_province_hia_ncdlri = shapefile_hia(
         hia_ncdlri,
         "ncdlri",
-        "province",
-        "/nobackup/earlacoa/health/data/gadm36_CHN_1.shp",
-        "/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
+        clips,
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
         lat,
         lon,
+        provinces,
     )
     df_province_hia_ncdlri.to_csv(
         f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_province_hia_{output}_{custom_output}.csv"
     )
 
-    region_list = [
-        "CHN.6.2_1",
-        "CHN.6.3_1",
-        "CHN.6.4_1",
-        "CHN.6.6_1",
-        "CHN.6.7_1",
-        "CHN.6.15_1",
-        "CHN.6.19_1",
-        "CHN.6.20_1",
-        "CHN.6.21_1",
-    ]
     df_prefecture_hia_ncdlri = shapefile_hia(
         hia_ncdlri,
         "ncdlri",
-        "prefecture",
-        "/nobackup/earlacoa/health/data/gadm36_CHN_2.shp",
-        "/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
+        clips,
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
         lat,
         lon,
-        region_list=region_list,
+        prefectures,
     )
     df_prefecture_hia_ncdlri.to_csv(
         f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_prefecture_hia_{output}_{custom_output}.csv"
@@ -488,22 +357,24 @@ def health_impact_assessment_o3(custom_output):
 
     xx, yy = np.meshgrid(lon, lat)
 
-    hia_o3 = calc_hia_gbd2017_o3(o3_6mDM8h, pop_z_2015, dict_ages, dict_bm, dict_o3)
+    hia_o3 = calc_hia_gbd2017_o3(o3_6mDM8h, pop_z_2015, dict_ages, dict_bm, dict_af)
     np.savez_compressed(
         f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/hia_{output}_{custom_output}.npz",
         hia_o3=hia_o3,
     )
 
-    region_list = [49, 102, 132, 225]
+    countries = ['China', 'Hong Kong', 'Macao', 'Taiwan']
+    provinces = ['Anhui', 'Beijing', 'Chongqing', 'Fujian', 'Gansu', 'Guangdong', 'Guangxi', 'Guizhou', 'Hainan', 'Hebei', 'Heilongjiang', 'Henan', 'Hubei', 'Hunan', 'Jiangsu', 'Jiangxi', 'Jilin', 'Liaoning', 'Nei Mongol', 'Ningxia Hui', 'Qinghai', 'Shaanxi', 'Shandong', 'Shanghai', 'Shanxi', 'Sichuan', 'Tianjin', 'Xinjiang Uygur', 'Xizang', 'Yunnan', 'Zhejiang']
+    prefectures = ['Dongguan', 'Foshan', 'Guangzhou', 'Huizhou', 'Jiangmen', 'Shenzhen', 'Zhaoqing', 'Zhongshan', 'Zhuhai']
+    
     df_country_hia_o3 = shapefile_hia(
         hia_o3,
         "copd",
-        "country",
-        "/nobackup/earlacoa/health/data/gadm28_adm0.shp",
-        "/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
+        clips,
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
         lat,
         lon,
-        region_list=region_list,
+        countries,
     )
     df_country_hia_o3.to_csv(
         f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_country_hia_{output}_{custom_output}.csv"
@@ -512,36 +383,24 @@ def health_impact_assessment_o3(custom_output):
     df_province_hia_o3 = shapefile_hia(
         hia_o3,
         "copd",
-        "province",
-        "/nobackup/earlacoa/health/data/gadm36_CHN_1.shp",
-        "/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
+        clips,
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
         lat,
         lon,
+        provinces,
     )
     df_province_hia_o3.to_csv(
         f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_province_hia_{output}_{custom_output}.csv"
     )
 
-    region_list = [
-        "CHN.6.2_1",
-        "CHN.6.3_1",
-        "CHN.6.4_1",
-        "CHN.6.6_1",
-        "CHN.6.7_1",
-        "CHN.6.15_1",
-        "CHN.6.19_1",
-        "CHN.6.20_1",
-        "CHN.6.21_1",
-    ]
     df_prefecture_hia_o3 = shapefile_hia(
         hia_o3,
         "copd",
-        "prefecture",
-        "/nobackup/earlacoa/health/data/gadm36_CHN_2.shp",
-        "/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
+        clips,
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
         lat,
         lon,
-        region_list=region_list,
+        prefectures,
     )
     df_prefecture_hia_o3.to_csv(
         f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_prefecture_hia_{output}_{custom_output}.csv"
@@ -550,6 +409,8 @@ def health_impact_assessment_o3(custom_output):
 
 # -----------
 # import data
+clips = joblib.load('/nobackup/earlacoa/machinelearning/data_annual/clips.joblib')
+
 with np.load("/nobackup/earlacoa/health/data/population-count-0.25deg.npz") as ds:
     pop_z_2015 = ds["pop_z_2015"]
     pop_xx = ds["pop_yy"]
@@ -588,15 +449,10 @@ for file_bm_each in file_bm_list:
 
 del file_bm_list, file_bm_each, file_bm, dict_bm_each
 
-with np.load(
-    "/nobackup/earlacoa/health/data/GBD2017_O3_attributablefraction.npz"
-) as file_o3:
-    dict_o3 = dict(
-        zip(
-            [key for key in file_o3],
-            [file_o3[key].astype("float32") for key in file_o3],
-        )
-    )
+dict_af = {}
+dict_af.update({'mean':  joblib.load('/nobackup/earlacoa/health/data/o3_dict_af_mean.joblib')})
+dict_af.update({'lower': joblib.load('/nobackup/earlacoa/health/data/o3_dict_af_lower.joblib')})
+dict_af.update({'upper': joblib.load('/nobackup/earlacoa/health/data/o3_dict_af_upper.joblib')})
 
 with np.load(
     "/nobackup/earlacoa/health/data/GEMM_healthfunction_part1.npz"
@@ -619,14 +475,20 @@ with np.load(
     )
 
 dict_gemm.update(dict_gemm_2)
+#return clips, pop_z_2015, pop_xx, pop_yy, dict_ages, dict_bm, dict_af, dict_gemm
+#clips, pop_z_2015, pop_xx, pop_yy, dict_ages, dict_bm, dict_af, dict_gemm = import_data()
 
+# convert to typed dicts
+#dict_ages = dict_to_typed_dict(dict_ages)
+#dict_gemm = dict_to_typed_dict(dict_gemm)
+#dict_bm = dict_to_typed_dict(dict_bm)
 # -----------
 
 
 def main():
     # dask cluster and client
     n_processes = 1
-    n_jobs = 35
+    n_jobs = 20
     n_workers = n_processes * n_jobs
 
     cluster = SGECluster(
@@ -652,7 +514,7 @@ def main():
 
     time_start = time.time()
 
-    # regrid custom outputs to pop grid
+    # find remaining inputs
     custom_outputs = glob.glob(
         f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}/ds*{output}_popgrid_0.25deg.nc"
     )
@@ -671,9 +533,8 @@ def main():
     print(f"custom outputs remaining for {output}: {len(custom_outputs_remaining)}")
 
     # dask bag and process
-    custom_outputs_remaining = custom_outputs_remaining[
-        0:5
-    ]  # run in 5 chunks over 30 cores, each chunk taking 2 minutes
+    # run in 10 chunks over 10 cores, each chunk taking 2 minutes
+    custom_outputs_remaining = custom_outputs_remaining[0:2000] 
     print(f"predicting for {len(custom_outputs_remaining)} custom outputs ...")
     bag_custom_outputs = db.from_sequence(
         custom_outputs_remaining, npartitions=n_workers
@@ -699,3 +560,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
