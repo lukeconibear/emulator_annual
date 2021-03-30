@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import re
 import time
 import sys
 import glob
@@ -500,19 +501,19 @@ def main():
 
     cluster = SGECluster(
         interface="ib0",
-        walltime="01:00:00",
-        memory=f"32 G",
-        resource_spec=f"h_vmem=32G",
+        walltime="02:00:00",
+        memory=f"48 G",
+        resource_spec=f"h_vmem=48G",
         scheduler_options={
-            "dashboard_address": ":5757",
+            "dashboard_address": ":7777",
         },
         job_extra=[
             "-cwd",
             "-V",
             f"-pe smp {n_processes}",
-            f"-l disk=32G",
+            f"-l disk=48G",
         ],
-        local_directory=os.sep.join([os.environ.get("PWD"), "dask-worker-space"]),
+        local_directory=os.sep.join([os.environ.get("PWD"), "dask-hia-space"]),
     )
 
     client = Client(cluster)
@@ -531,13 +532,35 @@ def main():
     custom_outputs_remaining_set = set(
         [item.split("/")[-1][3 : -1 - len(output) - 19] for item in custom_outputs]
     ) - set(
-        [
-            item.split("/")[-1][4 + len(output) + 1 : -4]
-            for item in custom_outputs_completed
-        ]
+        [item.split("/")[-1][4 + len(output) + 1 : -4] for item in custom_outputs_completed]
     )
     custom_outputs_remaining = [item for item in custom_outputs_remaining_set]
-    print(f"custom outputs remaining for {output}: {len(custom_outputs_remaining)}")
+    print(f"custom outputs remaining for {output}: {len(custom_outputs_remaining)} - 10% intervals with {int(100 * len(custom_outputs_remaining_set) / 16**5)}% remaining")
+
+    reduce_to_20percent_intervals = True
+    if reduce_to_20percent_intervals:
+        emission_configs = np.array(
+            np.meshgrid(
+                np.linspace(0.0, 1.4, 8),
+                np.linspace(0.0, 1.4, 8),
+                np.linspace(0.0, 1.4, 8),
+                np.linspace(0.0, 1.4, 8),
+                np.linspace(0.0, 1.4, 8),
+            )
+        ).T.reshape(-1, 5)
+        emission_configs_20percentintervals = []
+        for emission_config in emission_configs:
+            emission_configs_20percentintervals.append(f'RES{round(emission_config[0], 1)}_IND{round(emission_config[1], 1)}_TRA{round(emission_config[2], 1)}_AGR{round(emission_config[3], 1)}_ENE{round(emission_config[4], 1)}')
+
+        emission_configs_completed = []
+        for custom_output_completed in custom_outputs_completed:
+            emission_configs_completed.append(re.findall(r'RES\d+.\d+_IND\d+.\d+_TRA\d+.\d+_AGR\d+.\d+_ENE\d+.\d+', custom_output_completed)[0])
+
+
+        emission_configs_20percentintervals_remaining_set = set(emission_configs_20percentintervals) - set(emission_configs_completed)
+        custom_outputs_remaining = [item for item in emission_configs_20percentintervals_remaining_set]
+        print(f"custom outputs remaining for {output}: {len(custom_outputs_remaining)} - 20% intervals with {int(100 * len(emission_configs_20percentintervals_remaining_set) / len(emission_configs_20percentintervals))}% remaining")
+    # --------------------------------------------------
 
     # dask bag and process
     # run in 10 chunks over 10 cores, each chunk taking 2 minutes
@@ -552,12 +575,7 @@ def main():
         bag_custom_outputs.map(health_impact_assessment_o3).compute()
 
     time_end = time.time() - time_start
-    print(
-        f"completed in {time_end:0.2f} seconds, or {time_end / 60:0.2f} minutes, or {time_end / 3600:0.2f} hours"
-    )
-    print(
-        f"average time per custom output is {time_end / len(custom_outputs_remaining):0.2f} seconds"
-    )
+    print(f"completed in {time_end:0.2f} seconds, or {time_end / 60:0.2f} minutes, or {time_end / 3600:0.2f} hours")
 
     client.close()
     cluster.close()
@@ -567,3 +585,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

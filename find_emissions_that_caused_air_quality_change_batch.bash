@@ -1,14 +1,14 @@
 #!/bin/bash
 # submit looped chain of jobs
-# run as . health_impacts_per_emission_configuration_batch.bash
+# run as . custom_outputs_regrid_batch.bash
 # each is <10 minutes job for 2,500 custom outputs
 
-current=$(qsub health_impacts_per_emission_configuration.bash)
+current=$(qsub find_emissions_that_caused_air_quality_change.bash)
 echo $current
 
 for id in {2..50}; do
   current_id=$(echo $current | tr -d -c 0-9)
-  next=$(qsub -hold_jid $current_id health_impacts_per_emission_configuration.bash)
+  next=$(qsub -hold_jid $current_id find_emissions_that_caused_air_quality_change.bash)
   echo $next
   current=$next;
 done

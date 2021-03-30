@@ -12,8 +12,8 @@
 - Crop population-weighted output predictions to region's shapefile (`popweighted_region.py`). Submitted to HPC (`popweighted_region.bash`) using Dask for workers viewing worker status on Jupyter Lab. Uses cropping functions (`cutshapefile.py`).  
 - Create shapefile clips for the each country, province, and prefecture used in the health impact assessment (`create_shapefile_clips.ipynb`).  
 - Long-term health impact assessment per configuration (`health_impacts_per_emission_configuration.py`). Submitted to HPC (`health_impacts_per_emission_configuration.bash`) using Dask for workers viewing worker status on Jupyter Lab. Can submit in batch mode (`health_impacts_per_emission_configuration.bash`).  
-- Bottom-up matching of emission configurations that match recent air quality trends (`find_emissions_that_caused_air_quality_change.py` and `find_emissions_that_caused_air_quality_change.bash`), splitting by region in (`find_emissions_that_caused_air_quality_change.ipynb`).  
-- Various emulator plots including emulator evaluation, sensitivity maps, prediction maps, and 2D contour pairs, (`emulator_plots.ipynb`).  
+- Bottom-up matching of emission configurations that match recent air quality trends (`find_emissions_that_caused_air_quality_change.py` and `find_emissions_that_caused_air_quality_change.bash`). Can submit in batch mode (`find_emissions_that_caused_air_quality_change_batch.bash`).  
+- Various emulator plots including emulator evaluation, sensitivity maps, prediction maps, and 2D contour pairs, (`emulator_plots.ipynb` and `find_emissions_that_caused_air_quality_change.ipynb`).  
 
 ### Setup Python environment
 - Create a conda environment with the required libraries from the config file (.yml) in the repository:
