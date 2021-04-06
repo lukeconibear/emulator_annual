@@ -14,6 +14,7 @@
 - Long-term health impact assessment per configuration (`health_impacts_per_emission_configuration.py`). Submitted to HPC (`health_impacts_per_emission_configuration.bash`) using Dask for workers viewing worker status on Jupyter Lab. Can submit in batch mode (`health_impacts_per_emission_configuration.bash`).  
 - Bottom-up matching of emission configurations that match recent air quality trends (`find_emissions_that_caused_air_quality_change.py` and `find_emissions_that_caused_air_quality_change.bash`). Can submit in batch mode (`find_emissions_that_caused_air_quality_change_batch.bash`).  
 - Various emulator plots including emulator evaluation, sensitivity maps, prediction maps, and 2D contour pairs, (`emulator_plots.ipynb` and `find_emissions_that_caused_air_quality_change.ipynb`).  
+- Plots for emissions (`emission_plots.ipynb`).  
 
 ### Setup Python environment
 - Create a conda environment with the required libraries from the config file (.yml) in the repository:
