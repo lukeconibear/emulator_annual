@@ -9,6 +9,8 @@
 - Emulator cross-validation and sensitivity analysis (`emulator_creation.ipynb`). Interactively computed on a HPC using Dask and Jupyter Lab following instructions [here](https://pangeo.io/setup_guides/hpc.html#).  
 - Emulator predictions for custom inputs (`emulator_predictions.py`). Submitted to HPC (`emulator_predictions.bash`) using Dask for workers viewing worker status on Jupyter Lab. Can submit in batch mode (`emulator_predictions_batch.bash`).    
 - Regrid custom outputs to population grid of the world (`regrid_to_popgrid.py`). Submitted to HPC (`regrid_to_popgrid.bash`) using Dask for workers viewing worker status on Jupyter Lab. Can submit in batch mode (`regrid_to_popgrid_batch.bash`).  
+- Create scaling metrics of evaluation against measurements (`wrfchem_evaluation_scaling.ipynb`).  
+- Scale predictions to measurements (`scale_to_measurements.py`). Submitted to HPC (`scale_to_measurements.bash`) using Dask for workers viewing worker status on Jupyter Lab. Can submit in batch mode (`scale_to_measurements.bash`).  
 - Crop population-weighted output predictions to region's shapefile (`popweighted_region.py`). Submitted to HPC (`popweighted_region.bash`) using Dask for workers viewing worker status on Jupyter Lab. Uses cropping functions (`cutshapefile.py`).  
 - Create shapefile clips for the each country, province, and prefecture used in the health impact assessment (`create_shapefile_clips.ipynb`).  
 - Long-term health impact assessment per configuration (`health_impacts_per_emission_configuration.py`). Submitted to HPC (`health_impacts_per_emission_configuration.bash`) using Dask for workers viewing worker status on Jupyter Lab. Can submit in batch mode (`health_impacts_per_emission_configuration.bash`).  
