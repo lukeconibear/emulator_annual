@@ -13,8 +13,10 @@ import dask.bag as db
 from dask_jobqueue import SGECluster
 from dask.distributed import Client
 
-output = "PM2_5_DRY"
-#output = "o3_6mDM8h_ppb"
+#output = "PM2_5_DRY"
+output = "o3_6mDM8h_ppb"
+
+year_range = '2015-2014'
 
 if output == "o3_6mDM8h_ppb":
     emulator_output = "o3_6mDM8h"
@@ -24,7 +26,7 @@ else:
 use_10percent_intervals = True
 use_20percent_intervals = False 
 if use_10percent_intervals:
-    sub_folder = '2015-2017'
+    sub_folder = year_range
     n_jobs = 20
     walltime='01:00:00' # also change for .bash)
     emission_configs = np.array(
@@ -37,7 +39,7 @@ if use_10percent_intervals:
         )
     ).T.reshape(-1, 5)
 elif use_20percent_intervals:
-    sub_folder = '2015-2017_20percentintervals'
+    sub_folder = f'{year_range}_20percentintervals'
     n_jobs = 5
     walltime='00:05:00' # also change for .bash)
     emission_configs = np.array(
@@ -59,7 +61,7 @@ df_obs = pd.read_csv(
 # stations left
 obs_files = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/china_measurements_corrected/*.nc")
 obs_files = [f"{obs_file[-8:-3]}" for obs_file in obs_files]
-obs_files_completed = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}/*{output}*")
+obs_files_completed = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/*{output}*")
 obs_files_completed = [f"{item[-12:-7]}" for item in obs_files_completed]
 obs_files_remaining_set = set(obs_files) - set(obs_files_completed)
 obs_files_remaining = [item for item in obs_files_remaining_set]
@@ -76,11 +78,11 @@ targets = {}
 target_diffs = {}
 
 change_per = 100 * ((
-    df_obs.loc[df_obs.station_id == station_id][output]["2017"].values[0]
+    df_obs.loc[df_obs.station_id == station_id][output]["2014"].values[0]
     / df_obs.loc[df_obs.station_id == station_id][output]["2015"].values[0]
 ) - 1)
 change_abs = (
-    df_obs.loc[df_obs.station_id == station_id][output]["2017"].values[0]
+    df_obs.loc[df_obs.station_id == station_id][output]["2014"].values[0]
     - df_obs.loc[df_obs.station_id == station_id][output]["2015"].values[0]
 )
 
@@ -88,7 +90,7 @@ obs_change_abs.update({f"{station_id}_{output}": change_abs})
 obs_change_per.update({f"{station_id}_{output}": change_per})
 
 with xr.open_dataset(
-    f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}/ds_RES1.0_IND1.0_TRA1.0_AGR1.0_ENE1.0_{emulator_output}_popgrid_0.25deg.nc"
+    f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}_scaled/ds_RES1.0_IND1.0_TRA1.0_AGR1.0_ENE1.0_{emulator_output}_popgrid_0.25deg.nc"
 )[emulator_output] as ds:
     baseline = (
         ds.sel(lat=lat, method="nearest").sel(lon=lon, method="nearest").values
@@ -113,7 +115,7 @@ def filter_emission_configs(emission_config):
     inputs = emission_config.reshape(-1, 5)
     filename = f"RES{inputs[0][0]:.1f}_IND{inputs[0][1]:.1f}_TRA{inputs[0][2]:.1f}_AGR{inputs[0][3]:.1f}_ENE{inputs[0][4]:.1f}"
     with xr.open_dataset(
-        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}/ds_{filename}_{emulator_output}_popgrid_0.25deg.nc"
+        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}_scaled/ds_{filename}_{emulator_output}_popgrid_0.25deg.nc"
     )[emulator_output] as ds:
         prediction = (
             ds.sel(lat=lat, method="nearest").sel(lon=lon, method="nearest").values
@@ -184,13 +186,13 @@ def main():
     station_diffs_per = {key: merged_per}   
     station_diffs_abs = {key: merged_abs}
     
-    joblib.dump(obs_change_abs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}/obs_change_abs_{output}_{station_id}.joblib")
-    joblib.dump(obs_change_per, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}/obs_change_per_{output}_{station_id}.joblib")
-    joblib.dump(baselines, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}/baselines_{output}_{station_id}.joblib")
-    joblib.dump(targets, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}/targets_{output}_{station_id}.joblib")
-    joblib.dump(target_diffs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}/target_diffs_{output}_{station_id}.joblib")
-    joblib.dump(station_diffs_abs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}/station_diffs_abs_{output}_{station_id}.joblib")
-    joblib.dump(station_diffs_per, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}/station_diffs_per_{output}_{station_id}.joblib")
+    joblib.dump(obs_change_abs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/obs_change_abs_{output}_{station_id}.joblib")
+    joblib.dump(obs_change_per, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/obs_change_per_{output}_{station_id}.joblib")
+    joblib.dump(baselines, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/baselines_{output}_{station_id}.joblib")
+    joblib.dump(targets, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/targets_{output}_{station_id}.joblib")
+    joblib.dump(target_diffs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/target_diffs_{output}_{station_id}.joblib")
+    joblib.dump(station_diffs_abs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/station_diffs_abs_{output}_{station_id}.joblib")
+    joblib.dump(station_diffs_per, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/station_diffs_per_{output}_{station_id}.joblib")
 
     time_end = time.time() - time_start
     print(f"completed in {time_end:0.2f} seconds, or {time_end / 60:0.2f} minutes, or {time_end / 3600:0.2f} hours")
@@ -201,4 +203,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

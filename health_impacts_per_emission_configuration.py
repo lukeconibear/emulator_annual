@@ -294,7 +294,7 @@ def calc_hia_gbd2017_o3(o3, pop_z_2015, dict_ages, dict_bm, dict_af):
 
 def health_impact_assessment_pm25(custom_output):
     with xr.open_dataset(
-        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}/ds_{custom_output}_{output}_popgrid_0.25deg.nc"
+        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_scaled/ds_{custom_output}_{output}_popgrid_0.25deg_scaled.nc"
     ) as ds:
         pm25 = ds["PM2_5_DRY"].values
         lon = ds.lon.values
@@ -304,7 +304,7 @@ def health_impact_assessment_pm25(custom_output):
 
     hia_ncdlri = calc_hia_gemm_ncdlri(pm25, pop_z_2015, dict_ages, dict_bm, dict_gemm)
     np.savez_compressed(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/hia_{output}_{custom_output}.npz",
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/hia_{output}_{custom_output}_scaled.npz",
         hia_ncdlri=hia_ncdlri,
     )
 
@@ -316,45 +316,45 @@ def health_impact_assessment_pm25(custom_output):
         hia_ncdlri,
         "ncdlri",
         clips,
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/",
         lat,
         lon,
         countries,
     )
     df_country_hia_ncdlri.to_csv(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_country_hia_{output}_{custom_output}.csv"
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/df_country_hia_{output}_{custom_output}_scaled.csv"
     )
 
     df_province_hia_ncdlri = shapefile_hia(
         hia_ncdlri,
         "ncdlri",
         clips,
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/",
         lat,
         lon,
         provinces,
     )
     df_province_hia_ncdlri.to_csv(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_province_hia_{output}_{custom_output}.csv"
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/df_province_hia_{output}_{custom_output}_scaled.csv"
     )
 
     df_prefecture_hia_ncdlri = shapefile_hia(
         hia_ncdlri,
         "ncdlri",
         clips,
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/",
         lat,
         lon,
         prefectures,
     )
     df_prefecture_hia_ncdlri.to_csv(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_prefecture_hia_{output}_{custom_output}.csv"
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/df_prefecture_hia_{output}_{custom_output}_scaled.csv"
     )
 
 
 def health_impact_assessment_o3(custom_output):
     with xr.open_dataset(
-        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}/ds_{custom_output}_{output}_popgrid_0.25deg.nc"
+        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_scaled/ds_{custom_output}_{output}_popgrid_0.25deg_scaled.nc"
     ) as ds:
         o3_6mDM8h = ds["o3_6mDM8h"].values
         lon = ds.lon.values
@@ -364,7 +364,7 @@ def health_impact_assessment_o3(custom_output):
 
     hia_o3 = calc_hia_gbd2017_o3(o3_6mDM8h, pop_z_2015, dict_ages, dict_bm, dict_af)
     np.savez_compressed(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/hia_{output}_{custom_output}.npz",
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/hia_{output}_{custom_output}_scaled.npz",
         hia_o3=hia_o3,
     )
 
@@ -376,39 +376,39 @@ def health_impact_assessment_o3(custom_output):
         hia_o3,
         "copd",
         clips,
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/",
         lat,
         lon,
         countries,
     )
     df_country_hia_o3.to_csv(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_country_hia_{output}_{custom_output}.csv"
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/df_country_hia_{output}_{custom_output}_scaled.csv"
     )
 
     df_province_hia_o3 = shapefile_hia(
         hia_o3,
         "copd",
         clips,
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/",
         lat,
         lon,
         provinces,
     )
     df_province_hia_o3.to_csv(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_province_hia_{output}_{custom_output}.csv"
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/df_province_hia_{output}_{custom_output}_scaled.csv"
     )
 
     df_prefecture_hia_o3 = shapefile_hia(
         hia_o3,
         "copd",
         clips,
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/",
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/",
         lat,
         lon,
         prefectures,
     )
     df_prefecture_hia_o3.to_csv(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/df_prefecture_hia_{output}_{custom_output}.csv"
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/df_prefecture_hia_{output}_{custom_output}_scaled.csv"
     )
 
 
@@ -517,7 +517,7 @@ def main():
             f"-pe smp {n_processes}",
             f"-l disk=48G",
         ],
-        local_directory=os.sep.join([os.environ.get("PWD"), "dask-hia-pm-space"]),
+        local_directory=os.sep.join([os.environ.get("PWD"), "dask-hia-space"]),
     )
 
     client = Client(cluster)
@@ -529,10 +529,10 @@ def main():
     # find remaining inputs
     if normal:
         custom_outputs = glob.glob(
-            f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}/ds*{output}_popgrid_0.25deg.nc"
+            f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_scaled/ds*{output}_popgrid_0.25deg_scaled.nc"
         )
         custom_outputs_completed = glob.glob(
-            f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}/hia_{output}_*.npz"
+            f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/hia_{output}_*_scaled.npz"
         )
         custom_outputs_remaining_set = set(
             [item.split("/")[-1][3 : -1 - len(output) - 19] for item in custom_outputs]
