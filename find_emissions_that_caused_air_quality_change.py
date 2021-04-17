@@ -16,15 +16,17 @@ from dask.distributed import Client
 #output = "PM2_5_DRY"
 output = "o3_6mDM8h_ppb"
 
-year_range = '2015-2014'
+year_range = '2015-2017'
+reference_year = year_range.split('-')[0]
+comparison_year = year_range.split('-')[1]
 
 if output == "o3_6mDM8h_ppb":
     emulator_output = "o3_6mDM8h"
 else:
     emulator_output = output
 
-use_10percent_intervals = True
-use_20percent_intervals = False 
+use_10percent_intervals = False
+use_20percent_intervals = True 
 if use_10percent_intervals:
     sub_folder = year_range
     n_jobs = 20
@@ -44,11 +46,11 @@ elif use_20percent_intervals:
     walltime='00:05:00' # also change for .bash)
     emission_configs = np.array(
         np.meshgrid(
-            np.linspace(0.3, 1.3, 6),
-            np.linspace(0.3, 1.3, 6),
-            np.linspace(0.3, 1.3, 6),
-            np.linspace(0.3, 1.3, 6),
-            np.linspace(0.3, 1.3, 6),
+            np.linspace(0.2, 1.2, 6),
+            np.linspace(0.2, 1.2, 6),
+            np.linspace(0.2, 1.2, 6),
+            np.linspace(0.2, 1.2, 6),
+            np.linspace(0.2, 1.2, 6),
         )
     ).T.reshape(-1, 5)
 
@@ -78,19 +80,19 @@ targets = {}
 target_diffs = {}
 
 change_per = 100 * ((
-    df_obs.loc[df_obs.station_id == station_id][output]["2014"].values[0]
-    / df_obs.loc[df_obs.station_id == station_id][output]["2015"].values[0]
+    df_obs.loc[df_obs.station_id == station_id][output][comparison_year].values[0]
+    / df_obs.loc[df_obs.station_id == station_id][output][reference_year].values[0]
 ) - 1)
 change_abs = (
-    df_obs.loc[df_obs.station_id == station_id][output]["2014"].values[0]
-    - df_obs.loc[df_obs.station_id == station_id][output]["2015"].values[0]
+    df_obs.loc[df_obs.station_id == station_id][output][comparison_year].values[0]
+    - df_obs.loc[df_obs.station_id == station_id][output][reference_year].values[0]
 )
 
 obs_change_abs.update({f"{station_id}_{output}": change_abs})
 obs_change_per.update({f"{station_id}_{output}": change_per})
 
 with xr.open_dataset(
-    f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}_scaled/ds_RES1.0_IND1.0_TRA1.0_AGR1.0_ENE1.0_{emulator_output}_popgrid_0.25deg.nc"
+    f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}_scaled/ds_RES1.0_IND1.0_TRA1.0_AGR1.0_ENE1.0_{emulator_output}_popgrid_0.25deg_scaled.nc"
 )[emulator_output] as ds:
     baseline = (
         ds.sel(lat=lat, method="nearest").sel(lon=lon, method="nearest").values
@@ -115,7 +117,7 @@ def filter_emission_configs(emission_config):
     inputs = emission_config.reshape(-1, 5)
     filename = f"RES{inputs[0][0]:.1f}_IND{inputs[0][1]:.1f}_TRA{inputs[0][2]:.1f}_AGR{inputs[0][3]:.1f}_ENE{inputs[0][4]:.1f}"
     with xr.open_dataset(
-        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}_scaled/ds_{filename}_{emulator_output}_popgrid_0.25deg.nc"
+        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}_scaled/ds_{filename}_{emulator_output}_popgrid_0.25deg_scaled.nc"
     )[emulator_output] as ds:
         prediction = (
             ds.sel(lat=lat, method="nearest").sel(lon=lon, method="nearest").values

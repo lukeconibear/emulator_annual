@@ -6,7 +6,7 @@
 current=$(qsub scale_to_measurements.bash)
 echo $current
 
-for id in {2..115}; do
+for id in {2..8}; do
   current_id=$(echo $current | tr -d -c 0-9)
   next=$(qsub -hold_jid $current_id scale_to_measurements.bash)
   echo $next

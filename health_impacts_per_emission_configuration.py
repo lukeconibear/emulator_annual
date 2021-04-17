@@ -17,9 +17,9 @@ from numba import njit, typeof, typed, types, jit
 #output = "PM2_5_DRY"
 output = "o3_6mDM8h"
 
-normal = False # 20 percent intervals
+normal = True # 20 percent intervals
 extra = False # additional ones for the emission trend matching
-climate_cobenefits = True
+climate_cobenefits = False
 
 # -----------
 # functions

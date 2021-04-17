@@ -12,22 +12,22 @@ from dask.distributed import Client
 import joblib
 
 output = "o3_6mDM8h"
-# 'PM2_5_DRY', 'o3_6mDM8h'
+#output = 'PM2_5_DRY'
 
 with xr.open_dataset(
     "/nobackup/earlacoa/health/data/gpw_v4_population_count_adjusted_to_2015_unwpp_country_totals_rev11_2015_15_min.nc"
 ) as ds:
-    pop_2015 = ds["pop"]
+    pop_2015 = ds["pop"].load()
 
 pop_lat = pop_2015["lat"].values
 pop_lon = pop_2015["lon"].values
 
-region = "china"
-shapefile = "/nobackup/earlacoa/health/data/china_taiwan_hongkong_macao.shp"
+region = 'china'
+shapefile = '/nobackup/earlacoa/health/data/china_taiwan_hongkong_macao.shp'
 # region = 'gba'
 # shapefile = '/nobackup/earlacoa/health/data/gba.shp'
-# region = 'china_north'
-# shapefile = '/nobackup/earlacoa/health/data/CHN_north.shp'
+#region = "china_north"
+#shapefile = "/nobackup/earlacoa/health/data/CHN_north.shp"
 # region = 'china_north_east'
 # shapefile = '/nobackup/earlacoa/health/data/CHN_north_east.shp'
 # region = 'china_east'
@@ -58,19 +58,17 @@ def popweight_outputs_for_input(custom_input):
         + "_ENE"
         + str(np.round(custom_input[0][4], decimals=1))
     )
-    filename = f"ds_{sim}_{output}_popgrid_0.25deg.nc"
+    filename = f"ds_{sim}_{output}_popgrid_0.25deg_scaled.nc"
     print(f"processing for {filename} ...")
     #    try:
     with xr.open_dataset(
-        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}/{filename}"
+        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_scaled/{filename}"
     ) as ds:
-        ds_custom_output = ds[output]
+        ds_custom_output = ds[output].load()
 
     clip = rasterize(shapes, ds_custom_output.coords, longitude="lon", latitude="lat")
     ds_custom_output_clipped = ds_custom_output.where(clip == 0, other=np.nan)
-    return filename, np.nansum(
-        (ds_custom_output_clipped * pop_2015) / pop_2015_clipped.sum()
-    )
+    return filename, np.nansum((ds_custom_output_clipped * pop_2015) / pop_2015_clipped.sum())
 
 
 #    except:
@@ -107,11 +105,11 @@ def main():
     # main processing
     matrix_stacked = np.array(
         np.meshgrid(
-            np.linspace(0, 1.5, 16),
-            np.linspace(0, 1.5, 16),
-            np.linspace(0, 1.5, 16),
-            np.linspace(0, 1.5, 16),
-            np.linspace(0, 1.5, 16),
+            np.linspace(0, 1.4, 8),
+            np.linspace(0, 1.4, 8),
+            np.linspace(0, 1.4, 8),
+            np.linspace(0, 1.4, 8),
+            np.linspace(0, 1.4, 8),
         )
     ).T.reshape(-1, 5)
 
@@ -125,7 +123,7 @@ def main():
     print("saving ...")
     joblib.dump(
         outputs_popweighted,
-        f"/nobackup/earlacoa/machinelearning/data_annual/popweighted/popweighted_{region}_{output}_0.25deg.joblib",
+        f"/nobackup/earlacoa/machinelearning/data_annual/popweighted/popweighted_{region}_{output}_0.25deg_scaled.joblib",
     )
 
     client.close()
@@ -134,3 +132,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
