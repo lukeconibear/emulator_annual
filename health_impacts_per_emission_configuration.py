@@ -78,7 +78,13 @@ def dict_to_typed_dict(dict_normal):
     return typed_dict
 
 
-def outcome_per_age_ncdlri(pop_z_2015, age_grid, age, bm_ncd, bm_lri, outcome, metric, pm25_clipped, alpha, mu, pi, theta):
+def outcome_per_age_ncdlri(pop_z_2015, age_grid, age, bm_ncd, bm_lri, outcome, metric, pm25_clipped, alpha, mu, pi, theta, theta_error):
+    if metric == 'mean':
+        theta = theta
+    elif metric == 'lower':
+        theta = theta - theta_error
+    elif metric == 'upper':
+        theta = theta + theta_error
     return (pop_z_2015 * age_grid * (bm_ncd + bm_lri) * (1 - 1 / (np.exp(np.log(1 + pm25_clipped / alpha) / (1 + np.exp((mu - pm25_clipped) / pi)) * theta))))
 
 
@@ -156,7 +162,8 @@ def calc_hia_gemm_ncdlri(pm25, pop_z_2015, dict_ages, dict_bm, dict_gemm):
                             dict_gemm[f"gemm_health_nonacc_alpha_{age}"],
                             dict_gemm[f"gemm_health_nonacc_mu_{age}"],
                             dict_gemm[f"gemm_health_nonacc_pi_{age}"],
-                            dict_gemm[f"gemm_health_nonacc_theta_{age}"]
+                            dict_gemm[f"gemm_health_nonacc_theta_{age}"],
+                            dict_gemm[f"gemm_health_nonacc_theta_error_{age}"],
                         )
                     }
                 )

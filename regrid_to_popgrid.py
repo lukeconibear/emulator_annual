@@ -8,9 +8,7 @@ import dask.bag as db
 from dask_jobqueue import SGECluster
 from dask.distributed import Client
 
-with xr.open_dataset(
-    "/nobackup/earlacoa/health/data/gpw_v4_population_count_rev11_2020_0.25deg_crop.nc"
-) as ds:  # the right size grid even though for 2020 - 540,1440
+with xr.open_dataset("/nobackup/earlacoa/health/data/gpw-v4-population-count-adjusted-to-2015-unwpp-country-totals-2015-qtr-deg.nc") as ds:
     pop_2015 = ds["pop"]
 
 
@@ -24,8 +22,8 @@ pop_grid = xr.Dataset(
     }
 )
 
-output = "o3_6mDM8h"
-# 'PM2_5_DRY', 'o3_6mDM8h'
+output = "PM2_5_DRY"
+#output = "o3_6mDM8h"
 
 
 def regrid_to_pop(custom_output):
