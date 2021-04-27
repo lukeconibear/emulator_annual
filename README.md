@@ -26,3 +26,7 @@ pip install salib dask_labextension pyarrow
 jupyter labextension install dask-labextension  
 jupyter labextension install @jupyter-widgets/jupyterlab-manager  
 ```
+
+### License  
+This code is currently licensed under the GPLv3 License, free of charge for non-commercial use.  
+[![DOI](https://zenodo.org/badge/341827689.svg)](https://zenodo.org/badge/latestdoi/341827689)
