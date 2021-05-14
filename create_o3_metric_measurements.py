@@ -4,7 +4,7 @@ import pandas as pd
 import xarray as xr
 
 obs_files = glob.glob(
-    "/nobackup/earlacoa/machinelearning/data_annual/china_measurements_corrected/*.nc"
+    "/nobackup/earlacoa/machinelearning/data_annual/china_measurements_corrected_uptofeb2021/*.nc"
 )
 
 df_obs = pd.DataFrame(
@@ -27,7 +27,7 @@ def create_metrics(obs_file, df_obs):
     o3 = ds["O3"]
     pm25 = ds["PM2.5"]
 
-    years = ["2015", "2016", "2017", "2018", "2019"]
+    years = ["2015", "2016", "2017", "2018", "2019", "2020"]
 
     for year in years:
         # pm25
@@ -78,5 +78,6 @@ for obs_file in obs_files:
 df_obs = df_obs.set_index("datetime").sort_index()
 
 df_obs.to_csv(
-    "/nobackup/earlacoa/machinelearning/data_annual/china_measurements_corrected/df_obs_o3_6mDM8h_ppb_PM2_5_DRY.csv"
+    "/nobackup/earlacoa/machinelearning/data_annual/china_measurements_corrected_uptofeb2021/df_obs_o3_6mDM8h_ppb_PM2_5_DRY.csv"
 )
+

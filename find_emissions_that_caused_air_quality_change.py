@@ -55,13 +55,13 @@ elif use_20percent_intervals:
     ).T.reshape(-1, 5)
 
 df_obs = pd.read_csv(
-    f"/nobackup/earlacoa/machinelearning/data_annual/china_measurements_corrected/df_obs_o3_6mDM8h_ppb_PM2_5_DRY.csv",
+    f"/nobackup/earlacoa/machinelearning/data_annual/china_measurements_corrected_uptofeb2021/df_obs_o3_6mDM8h_ppb_PM2_5_DRY.csv",
     index_col="datetime",
     parse_dates=True,
 )
 
 # stations left
-obs_files = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/china_measurements_corrected/*.nc")
+obs_files = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/china_measurements_corrected_uptofeb2021/*.nc")
 obs_files = [f"{obs_file[-8:-3]}" for obs_file in obs_files]
 obs_files_completed = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/*{output}*")
 obs_files_completed = [f"{item[-12:-7]}" for item in obs_files_completed]
@@ -205,3 +205,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
