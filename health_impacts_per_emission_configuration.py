@@ -19,7 +19,8 @@ output = "o3_6mDM8h"
 
 normal = False # 20 percent intervals
 extra = False # additional ones for the emission trend matching
-climate_cobenefits = True
+climate_cobenefits = False
+top_down_2020_baseline = True
 
 # -----------
 # functions
@@ -772,6 +773,22 @@ def main():
             'RES0.196_IND0.351_TRA0.272_AGR0.000_ENE0.433', # SDS_MFR_2050 - NO AGR
             'RES0.196_IND0.351_TRA0.272_AGR0.860_ENE0.000', # SDS_MFR_2050 - NO ENE
         ]
+
+    if top_down_2020_baseline:
+        emission_config_2020_baseline = np.array([0.64, 0.79, 0.63, 0.56, 0.44])
+        emission_configs = np.array(
+            np.meshgrid(
+                np.linspace(emission_config_2020_baseline[0] - 0.40, emission_config_2020_baseline[0], 5),
+                np.linspace(emission_config_2020_baseline[1] - 0.40, emission_config_2020_baseline[1], 5),
+                np.linspace(emission_config_2020_baseline[2] - 0.40, emission_config_2020_baseline[2], 5),
+                np.linspace(emission_config_2020_baseline[3] - 0.40, emission_config_2020_baseline[3], 5),
+                np.linspace(emission_config_2020_baseline[4] - 0.40, emission_config_2020_baseline[4], 5),
+            )
+        ).T.reshape(-1, 5)
+        custom_outputs_remaining = []
+        for emission_config in emission_configs:
+            custom_outputs_remaining.append(f'RES{round(emission_config[0], 2)}_IND{round(emission_config[1], 2)}_TRA{round(emission_config[2], 2)}_AGR{round(emission_config[3], 2)}_ENE{round(emission_config[4], 2)}')
+
     # --------------------------------------------------
 
     # dask bag and process

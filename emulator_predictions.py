@@ -12,13 +12,14 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-output = 'PM2_5_DRY'
-#output = 'o3_6mDM8h'
+#output = 'PM2_5_DRY'
+output = 'o3_6mDM8h'
 # 'bc_2p5', 'oc_2p5', 'no3_2p5', 'oin_2p5', 'AOD550_sfc', 'bsoaX_2p5', 'nh4_2p5', 'no3_2p5', 'asoaX_2p5'
 
 normal = False # 20 percent intervals
 extra = False # additional ones for the emission trend matching
-climate_cobenefits = True
+climate_cobenefits = False
+top_down_2020_baseline = True
 
 data_dir = sys.argv[1]
 out_dir = sys.argv[2]
@@ -43,7 +44,7 @@ def create_dataset(results):
     ene = results[0]["ene"]
     if normal:
         filename = f"RES{res:.1f}_IND{ind:.1f}_TRA{tra:.1f}_AGR{agr:.1f}_ENE{ene:.1f}"
-    if extra:
+    if extra or top_down_2020_baseline:
         filename = f"RES{res:.2f}_IND{ind:.2f}_TRA{tra:.2f}_AGR{agr:.2f}_ENE{ene:.2f}"
     if climate_cobenefits:
         filename = f"RES{res:.3f}_IND{ind:.3f}_TRA{tra:.3f}_AGR{agr:.3f}_ENE{ene:.3f}"
@@ -351,6 +352,19 @@ def main():
             np.array([[0.196, 0.351, 0.272, 0.0, 0.433]]), # SDS_MFR_2050 - NO AGR
             np.array([[0.196, 0.351, 0.272, 0.860, 0.0]]), # SDS_MFR_2050 - NO ENE
         ]
+
+    if top_down_2020_baseline:
+        emission_config_2020_baseline = np.array([0.64, 0.79, 0.63, 0.56, 0.44])
+        emission_configs = np.array(
+            np.meshgrid(
+                np.linspace(emission_config_2020_baseline[0] - 0.40, emission_config_2020_baseline[0], 5),
+                np.linspace(emission_config_2020_baseline[1] - 0.40, emission_config_2020_baseline[1], 5),
+                np.linspace(emission_config_2020_baseline[2] - 0.40, emission_config_2020_baseline[2], 5),
+                np.linspace(emission_config_2020_baseline[3] - 0.40, emission_config_2020_baseline[3], 5),
+                np.linspace(emission_config_2020_baseline[4] - 0.40, emission_config_2020_baseline[4], 5),
+            )
+        ).T.reshape(-1, 5)
+        custom_inputs = [np.array(emission_config).reshape(1, -1) for emission_config in emission_configs]
 
     # dask bag and process
     custom_inputs = custom_inputs[

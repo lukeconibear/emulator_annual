@@ -22,8 +22,8 @@ pop_grid = xr.Dataset(
     }
 )
 
-output = "PM2_5_DRY"
-#output = "o3_6mDM8h"
+#output = "PM2_5_DRY"
+output = "o3_6mDM8h"
 
 
 def regrid_to_pop(custom_output):

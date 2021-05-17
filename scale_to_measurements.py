@@ -9,12 +9,13 @@ import dask.bag as db
 from dask_jobqueue import SGECluster
 from dask.distributed import Client
 
-output = "PM2_5_DRY"
-#output = "o3_6mDM8h"
+#output = "PM2_5_DRY"
+output = "o3_6mDM8h"
 
 normal = False # 20 percent intervals
 extra = False # additional ones for the emission trend matching
-climate_cobenefits = True
+climate_cobenefits = False
+top_down_2020_baseline = True
 
 with xr.open_dataset(f"/nobackup/earlacoa/machinelearning/data_annual/prefecture_scaling_factors_{output}.nc") as ds:
     scaling_factor = ds["scaling_factor"]
@@ -272,6 +273,22 @@ def main():
             'RES0.196_IND0.351_TRA0.272_AGR0.000_ENE0.433', # SDS_MFR_2050 - NO AGR
             'RES0.196_IND0.351_TRA0.272_AGR0.860_ENE0.000', # SDS_MFR_2050 - NO ENE
         ]
+
+    if top_down_2020_baseline:
+        emission_config_2020_baseline = np.array([0.64, 0.79, 0.63, 0.56, 0.44])
+        emission_configs = np.array(
+            np.meshgrid(
+                np.linspace(emission_config_2020_baseline[0] - 0.40, emission_config_2020_baseline[0], 5),
+                np.linspace(emission_config_2020_baseline[1] - 0.40, emission_config_2020_baseline[1], 5),
+                np.linspace(emission_config_2020_baseline[2] - 0.40, emission_config_2020_baseline[2], 5),
+                np.linspace(emission_config_2020_baseline[3] - 0.40, emission_config_2020_baseline[3], 5),
+                np.linspace(emission_config_2020_baseline[4] - 0.40, emission_config_2020_baseline[4], 5),
+            )
+        ).T.reshape(-1, 5)
+        emission_configs_20percentintervals = []
+        for emission_config in emission_configs:
+            emission_configs_20percentintervals.append(f'RES{round(emission_config[0], 2)}_IND{round(emission_config[1], 2)}_TRA{round(emission_config[2], 2)}_AGR{round(emission_config[3], 2)}_ENE{round(emission_config[4], 2)}')
+
 
     emission_configs_completed = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_scaled/ds*{output}_popgrid_0.25deg_scaled.nc")
     emission_configs_completed = [f"{item[79:-36]}" for item in emission_configs_completed]
