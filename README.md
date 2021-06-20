@@ -1,4 +1,6 @@
 ## Long-term Emulator
+![github_repo](https://user-images.githubusercontent.com/19871268/122675461-723e7d00-d1d1-11eb-97db-3c17676e7f42.png)
+
 ### Scripts
 - For other scripts designing the emulator see other [repository](https://github.com/lukeconibear/emulator).  
 - Concatenate simulator data for the year (`concat_simulation_data.ipynb`).  
