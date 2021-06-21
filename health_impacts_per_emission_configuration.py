@@ -18,9 +18,9 @@ from numba import njit, typeof, typed, types, jit
 output = "o3_6mDM8h"
 
 normal = False # 20 percent intervals
-extra = False # additional ones for the emission trend matching
+extra = True # additional ones for the emission trend matching
 climate_cobenefits = False
-top_down_2020_baseline = True
+top_down_2020_baseline = False
 
 # -----------
 # functions
@@ -575,214 +575,144 @@ def main():
             print(f"custom outputs remaining for {output}: {len(custom_outputs_remaining)} - 20% intervals with {int(100 * len(emission_configs_20percentintervals_remaining_set) / len(emission_configs_20percentintervals))}% remaining")
 
     if extra:
-        custom_outputs_remaining = [
-            'RES1.15_IND1.27_TRA0.98_AGR0.98_ENE1.36', # bottom-up 2010
-            'RES1.19_IND1.30_TRA1.01_AGR1.01_ENE1.46', # bottom-up 2011
-            'RES1.20_IND1.30_TRA1.01_AGR1.02_ENE1.39', # bottom-up 2012
-            'RES1.13_IND1.29_TRA1.02_AGR1.01_ENE1.29', # bottom-up 2013
-            'RES1.06_IND1.12_TRA0.99_AGR1.01_ENE1.12', # bottom-up 2014
-            'RES0.92_IND0.84_TRA0.97_AGR0.99_ENE0.94', # bottom-up 2016
-            'RES0.84_IND0.81_TRA0.99_AGR0.99_ENE0.89', # bottom-up 2017
-            'RES0.95_IND0.99_TRA0.71_AGR0.88_ENE0.69', # top-down, 2016, both
-            'RES0.89_IND0.90_TRA0.79_AGR0.74_ENE0.59', # top-down, 2017, both
-            'RES0.71_IND0.91_TRA0.84_AGR0.53_ENE0.54', # top-down, 2018, both
-            'RES0.72_IND0.88_TRA0.73_AGR0.71_ENE0.63', # top-down, 2019, both
-            'RES0.64_IND0.79_TRA0.63_AGR0.56_ENE0.44', # top-down, 2020, both
-            'RES0.96_IND0.93_TRA0.68_AGR0.87_ENE0.76', # top-down, 2016, either
-            'RES0.96_IND0.92_TRA0.75_AGR0.83_ENE0.46', # top-down, 2017, either
-            'RES0.86_IND1.08_TRA0.82_AGR0.52_ENE0.49', # top-down, 2018, either
-            'RES0.87_IND0.94_TRA0.71_AGR0.59_ENE0.50', # top-down, 2019, either
-            'RES0.79_IND0.79_TRA0.60_AGR0.42_ENE0.44', # top-down, 2020, either
-            'RES0.76_IND1.08_TRA0.56_AGR0.77_ENE0.86', # top-down, 2016, o3_6mDM8h
-            'RES0.94_IND0.67_TRA0.74_AGR0.72_ENE0.37', # top-down, 2017, o3_6mDM8h
-            'RES0.93_IND1.11_TRA0.93_AGR0.64_ENE0.40', # top-down, 2018, o3_6mDM8h
-            'RES0.94_IND1.12_TRA0.61_AGR0.48_ENE0.35', # top-down, 2019, o3_6mDM8h
-            'RES0.94_IND0.99_TRA0.66_AGR0.50_ENE0.43', # top-down, 2020, o3_6mDM8h
-            'RES1.01_IND0.82_TRA0.77_AGR0.94_ENE0.73', # top-down, 2016, PM2_5_DRY
-            'RES0.88_IND0.88_TRA0.75_AGR0.91_ENE0.70', # top-down, 2017, PM2_5_DRY
-            'RES0.79_IND0.85_TRA0.74_AGR0.85_ENE0.83', # top-down, 2018, PM2_5_DRY
-            'RES0.83_IND0.71_TRA0.82_AGR0.89_ENE0.79', # top-down, 2019, PM2_5_DRY
-            'RES0.94_IND0.38_TRA0.65_AGR0.74_ENE0.72', # top-down, 2020, PM2_5_DRY
+        custom_inputs_main = [
+            np.array([[1.15, 1.27, 0.98, 0.98, 1.36]]), # bottom-up 2010
+            np.array([[1.19, 1.30, 1.01, 1.01, 1.46]]), # bottom-up 2011
+            np.array([[1.20, 1.30, 1.01, 1.02, 1.39]]), # bottom-up 2012
+            np.array([[1.13, 1.29, 1.02, 1.01, 1.29]]), # bottom-up 2013
+            np.array([[1.06, 1.12, 0.99, 1.01, 1.12]]), # bottom-up 2014
+            np.array([[0.92, 0.84, 0.97, 0.99, 0.94]]), # bottom-up 2016
+            np.array([[0.84, 0.81, 0.99, 0.99, 0.89]]), # bottom-up 2017
+            np.array([[0.93, 1.00, 0.77, 0.84, 0.73]]), # top-down, 2016, both
+            np.array([[0.87, 0.86, 0.75, 0.72, 0.66]]), # top-down, 2017, both
+            np.array([[0.75, 0.87, 0.75, 0.64, 0.63]]), # top-down, 2018, both
+            np.array([[0.77, 0.81, 0.71, 0.67, 0.66]]), # top-down, 2019, both
+            np.array([[0.67, 0.71, 0.66, 0.60, 0.62]]), # top-down, 2020, both
+            np.array([[0.93, 0.98, 0.73, 0.84, 0.72]]), # top-down, 2016, either
+            np.array([[0.94, 0.94, 0.76, 0.79, 0.60]]), # top-down, 2017, either
+            np.array([[0.81, 1.04, 0.74, 0.63, 0.52]]), # top-down, 2018, either
+            np.array([[0.84, 0.87, 0.72, 0.71, 0.59]]), # top-down, 2019, either
+            np.array([[0.72, 0.80, 0.68, 0.54, 0.51]]), # top-down, 2020, either
+            np.array([[0.93, 0.97, 0.76, 0.84, 0.73]]), # top-down, 2016, PM2_5_DRY
+            np.array([[0.90, 0.94, 0.75, 0.84, 0.74]]), # top-down, 2017, PM2_5_DRY
+            np.array([[0.82, 0.85, 0.72, 0.81, 0.73]]), # top-down, 2018, PM2_5_DRY
+            np.array([[0.82, 0.78, 0.75, 0.83, 0.72]]), # top-down, 2019, PM2_5_DRY
+            np.array([[0.77, 0.58, 0.69, 0.72, 0.71]]), # top-down, 2020, PM2_5_DRY
+            np.array([[0.77, 1.01, 0.70, 0.69, 0.72]]), # top-down, 2016, o3_6mDM8h
+            np.array([[0.82, 0.76, 0.77, 0.64, 0.43]]), # top-down, 2017, o3_6mDM8h
+            np.array([[0.86, 1.09, 0.79, 0.60, 0.48]]), # top-down, 2018, o3_6mDM8h
+            np.array([[0.80, 0.99, 0.65, 0.57, 0.49]]), # top-down, 2019, o3_6mDM8h
+            np.array([[0.87, 0.96, 0.68, 0.56, 0.48]]), # top-down, 2020, o3_6mDM8h
         ]
+        custom_inputs = []
+        for custom_input in custom_inputs_main:
+            custom_input_res = np.copy(custom_input)
+            custom_input_ind = np.copy(custom_input)
+            custom_input_tra = np.copy(custom_input)
+            custom_input_agr = np.copy(custom_input)
+            custom_input_ene = np.copy(custom_input)
+            custom_input_nores = np.copy(custom_input)
+            custom_input_noind = np.copy(custom_input)
+            custom_input_notra = np.copy(custom_input)
+            custom_input_noagr = np.copy(custom_input)
+            custom_input_noene = np.copy(custom_input)
+            
+            custom_input_res[0][1:] = 1.0
+            custom_input_ind[0][0] = 1.0
+            custom_input_ind[0][2:] = 1.0
+            custom_input_tra[0][:2] = 1.0
+            custom_input_tra[0][3:] = 1.0
+            custom_input_agr[0][:3] = 1.0
+            custom_input_agr[0][4:] = 1.0
+            custom_input_ene[0][:4] = 1.0
+            
+            custom_input_nores[0][0] = 0.0
+            custom_input_noind[0][1] = 0.0
+            custom_input_notra[0][2] = 0.0
+            custom_input_noagr[0][3] = 0.0
+            custom_input_noene[0][4] = 0.0
+            
+            custom_inputs.append(custom_input)
+            custom_inputs.append(custom_input_res)
+            custom_inputs.append(custom_input_ind)
+            custom_inputs.append(custom_input_tra)
+            custom_inputs.append(custom_input_agr)
+            custom_inputs.append(custom_input_ene)
+            custom_inputs.append(custom_input_nores)
+            custom_inputs.append(custom_input_noind)
+            custom_inputs.append(custom_input_notra)
+            custom_inputs.append(custom_input_noagr)
+            custom_inputs.append(custom_input_noene)
 
     if climate_cobenefits:
-        custom_outputs_remaining = [
-            'RES0.934_IND0.937_TRA0.876_AGR1.054_ENE0.964', # Base_CLE_2020
-            'RES0.934_IND1.000_TRA1.000_AGR1.000_ENE1.000', # Base_CLE_2020 - RES
-            'RES1.000_IND0.937_TRA1.000_AGR1.000_ENE1.000', # Base_CLE_2020 - IND
-            'RES1.000_IND1.000_TRA0.876_AGR1.000_ENE1.000', # Base_CLE_2020 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR1.054_ENE1.000', # Base_CLE_2020 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.964', # Base_CLE_2020 - ENE
-            'RES0.934_IND0.937_TRA0.876_AGR1.054_ENE0.964', # Base_MFR_2020
-            'RES0.934_IND1.000_TRA1.000_AGR1.000_ENE1.000', # Base_MFR_2020 - RES
-            'RES1.000_IND0.937_TRA1.000_AGR1.000_ENE1.000', # Base_MFR_2020 - IND
-            'RES1.000_IND1.000_TRA0.876_AGR1.000_ENE1.000', # Base_MFR_2020 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR1.054_ENE1.000', # Base_MFR_2020 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.964', # Base_MFR_2020 - ENE
-            'RES0.934_IND0.937_TRA0.876_AGR1.054_ENE0.964', # SDS_MFR_2020
-            'RES0.934_IND1.000_TRA1.000_AGR1.000_ENE1.000', # SDS_MFR_2020 - RES
-            'RES1.000_IND0.937_TRA1.000_AGR1.000_ENE1.000', # SDS_MFR_2020 - IND
-            'RES1.000_IND1.000_TRA0.876_AGR1.000_ENE1.000', # SDS_MFR_2020 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR1.054_ENE1.000', # SDS_MFR_2020 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.964', # SDS_MFR_2020 - ENE
-            'RES0.839_IND0.880_TRA0.788_AGR1.105_ENE0.947', # Base_CLE_2025
-            'RES0.839_IND1.000_TRA1.000_AGR1.000_ENE1.000', # Base_CLE_2025 - RES
-            'RES1.000_IND0.880_TRA1.000_AGR1.000_ENE1.000', # Base_CLE_2025 - IND
-            'RES1.000_IND1.000_TRA0.788_AGR1.000_ENE1.000', # Base_CLE_2025 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR1.105_ENE1.000', # Base_CLE_2025 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.947', # Base_CLE_2025 - ENE
-            'RES0.536_IND0.495_TRA0.630_AGR0.787_ENE0.647', # Base_MFR_2025
-            'RES0.536_IND1.000_TRA1.000_AGR1.000_ENE1.000', # Base_MFR_2025 - RES
-            'RES1.000_IND0.495_TRA1.000_AGR1.000_ENE1.000', # Base_MFR_2025 - IND
-            'RES1.000_IND1.000_TRA0.630_AGR1.000_ENE1.000', # Base_MFR_2025 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR0.787_ENE1.000', # Base_MFR_2025 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.647', # Base_MFR_2025 - ENE
-            'RES0.507_IND0.483_TRA0.598_AGR0.787_ENE0.557', # SDS_MFR_2025
-            'RES0.507_IND1.000_TRA1.000_AGR1.000_ENE1.000', # SDS_MFR_2025 - RES
-            'RES1.000_IND0.483_TRA1.000_AGR1.000_ENE1.000', # SDS_MFR_2025 - IND
-            'RES1.000_IND1.000_TRA0.598_AGR1.000_ENE1.000', # SDS_MFR_2025 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR0.787_ENE1.000', # SDS_MFR_2025 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.557', # SDS_MFR_2025 - ENE
-            'RES0.769_IND0.853_TRA0.760_AGR1.159_ENE0.935', # Base_CLE_2030
-            'RES0.769_IND1.000_TRA1.000_AGR1.000_ENE1.000', # Base_CLE_2030 - RES
-            'RES1.000_IND0.853_TRA1.000_AGR1.000_ENE1.000', # Base_CLE_2030 - IND
-            'RES1.000_IND1.000_TRA0.760_AGR1.000_ENE1.000', # Base_CLE_2030 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR1.159_ENE1.000', # Base_CLE_2030 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.935', # Base_CLE_2030 - ENE
-            'RES0.409_IND0.469_TRA0.540_AGR0.810_ENE0.661', # Base_MFR_2030
-            'RES0.409_IND1.000_TRA1.000_AGR1.000_ENE1.000', # Base_MFR_2030 - RES
-            'RES1.000_IND0.469_TRA1.000_AGR1.000_ENE1.000', # Base_MFR_2030 - IND
-            'RES1.000_IND1.000_TRA0.540_AGR1.000_ENE1.000', # Base_MFR_2030 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR0.810_ENE1.000', # Base_MFR_2030 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.661', # Base_MFR_2030 - ENE
-            'RES0.353_IND0.449_TRA0.483_AGR0.810_ENE0.517', # SDS_MFR_2030
-            'RES0.353_IND1.000_TRA1.000_AGR1.000_ENE1.000', # SDS_MFR_2030 - RES
-            'RES1.000_IND0.449_TRA1.000_AGR1.000_ENE1.000', # SDS_MFR_2030 - IND
-            'RES1.000_IND1.000_TRA0.483_AGR1.000_ENE1.000', # SDS_MFR_2030 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR0.810_ENE1.000', # SDS_MFR_2030 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.517', # SDS_MFR_2030 - ENE
-            'RES0.732_IND0.821_TRA0.748_AGR1.180_ENE0.938', # Base_CLE_2035
-            'RES0.732_IND1.000_TRA1.000_AGR1.000_ENE1.000', # Base_CLE_2035 - RES
-            'RES1.000_IND0.821_TRA1.000_AGR1.000_ENE1.000', # Base_CLE_2035 - IND
-            'RES1.000_IND1.000_TRA0.748_AGR1.000_ENE1.000', # Base_CLE_2035 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR1.180_ENE1.000', # Base_CLE_2035 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.938', # Base_CLE_2035 - ENE
-            'RES0.344_IND0.438_TRA0.466_AGR0.821_ENE0.674', # Base_MFR_2035
-            'RES0.344_IND1.000_TRA1.000_AGR1.000_ENE1.000', # Base_MFR_2035 - RES
-            'RES1.000_IND0.438_TRA1.000_AGR1.000_ENE1.000', # Base_MFR_2035 - IND
-            'RES1.000_IND1.000_TRA0.466_AGR1.000_ENE1.000', # Base_MFR_2035 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR0.821_ENE1.000', # Base_MFR_2035 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.674', # Base_MFR_2035 - ENE
-            'RES0.296_IND0.414_TRA0.394_AGR0.821_ENE0.494', # SDS_MFR_2035
-            'RES0.296_IND1.000_TRA1.000_AGR1.000_ENE1.000', # SDS_MFR_2035 - RES
-            'RES1.000_IND0.414_TRA1.000_AGR1.000_ENE1.000', # SDS_MFR_2035 - IND
-            'RES1.000_IND1.000_TRA0.394_AGR1.000_ENE1.000', # SDS_MFR_2035 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR0.821_ENE1.000', # SDS_MFR_2035 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.494', # SDS_MFR_2035 - ENE
-            'RES0.681_IND0.775_TRA0.707_AGR1.245_ENE0.897', # Base_CLE_2050
-            'RES0.681_IND1.000_TRA1.000_AGR1.000_ENE1.000', # Base_CLE_2050 - RES
-            'RES1.000_IND0.775_TRA1.000_AGR1.000_ENE1.000', # Base_CLE_2050 - IND
-            'RES1.000_IND1.000_TRA0.707_AGR1.000_ENE1.000', # Base_CLE_2050 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR1.245_ENE1.000', # Base_CLE_2050 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.897', # Base_CLE_2050 - ENE
-            'RES0.221_IND0.383_TRA0.377_AGR0.860_ENE0.678', # Base_MFR_2050
-            'RES0.221_IND1.000_TRA1.000_AGR1.000_ENE1.000', # Base_MFR_2050 - RES
-            'RES1.000_IND0.383_TRA1.000_AGR1.000_ENE1.000', # Base_MFR_2050 - IND
-            'RES1.000_IND1.000_TRA0.377_AGR1.000_ENE1.000', # Base_MFR_2050 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR0.860_ENE1.000', # Base_MFR_2050 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.678', # Base_MFR_2050 - ENE
-            'RES0.196_IND0.351_TRA0.272_AGR0.860_ENE0.433', # SDS_MFR_2050
-            'RES0.196_IND1.000_TRA1.000_AGR1.000_ENE1.000', # SDS_MFR_2050 - RES
-            'RES1.000_IND0.351_TRA1.000_AGR1.000_ENE1.000', # SDS_MFR_2050 - IND
-            'RES1.000_IND1.000_TRA0.272_AGR1.000_ENE1.000', # SDS_MFR_2050 - TRA
-            'RES1.000_IND1.000_TRA1.000_AGR0.860_ENE1.000', # SDS_MFR_2050 - AGR
-            'RES1.000_IND1.000_TRA1.000_AGR1.000_ENE0.433', # SDS_MFR_2050 - ENE
-            'RES0.000_IND0.937_TRA0.876_AGR1.054_ENE0.964', # Base_CLE_2020 - NO RES
-            'RES0.934_IND0.000_TRA0.876_AGR1.054_ENE0.964', # Base_CLE_2020 - NO IND
-            'RES0.934_IND0.937_TRA0.000_AGR1.054_ENE0.964', # Base_CLE_2020 - NO TRA
-            'RES0.934_IND0.937_TRA0.876_AGR0.000_ENE0.964', # Base_CLE_2020 - NO AGR
-            'RES0.934_IND0.937_TRA0.876_AGR1.054_ENE0.000', # Base_CLE_2020 - NO ENE
-            'RES0.000_IND0.937_TRA0.876_AGR1.054_ENE0.964', # Base_MFR_2020 - NO RES
-            'RES0.934_IND0.000_TRA0.876_AGR1.054_ENE0.964', # Base_MFR_2020 - NO IND
-            'RES0.934_IND0.937_TRA0.000_AGR1.054_ENE0.964', # Base_MFR_2020 - NO TRA
-            'RES0.934_IND0.937_TRA0.876_AGR0.000_ENE0.964', # Base_MFR_2020 - NO AGR
-            'RES0.934_IND0.937_TRA0.876_AGR1.054_ENE0.000', # Base_MFR_2020 - NO ENE
-            'RES0.000_IND0.937_TRA0.876_AGR1.054_ENE0.964', # SDS_MFR_2020 - NO RES
-            'RES0.934_IND0.000_TRA0.876_AGR1.054_ENE0.964', # SDS_MFR_2020 - NO IND
-            'RES0.934_IND0.937_TRA0.000_AGR1.054_ENE0.964', # SDS_MFR_2020 - NO TRA
-            'RES0.934_IND0.937_TRA0.876_AGR0.000_ENE0.964', # SDS_MFR_2020 - NO AGR
-            'RES0.934_IND0.937_TRA0.876_AGR1.054_ENE0.000', # SDS_MFR_2020 - NO ENE
-            'RES0.000_IND0.880_TRA0.788_AGR1.105_ENE0.947', # Base_CLE_2025 - NO RES
-            'RES0.839_IND0.000_TRA0.788_AGR1.105_ENE0.947', # Base_CLE_2025 - NO IND
-            'RES0.839_IND0.880_TRA0.000_AGR1.105_ENE0.947', # Base_CLE_2025 - NO TRA
-            'RES0.839_IND0.880_TRA0.788_AGR0.000_ENE0.947', # Base_CLE_2025 - NO AGR
-            'RES0.839_IND0.880_TRA0.788_AGR1.105_ENE0.000', # Base_CLE_2025 - NO ENE
-            'RES0.000_IND0.495_TRA0.630_AGR0.787_ENE0.647', # Base_MFR_2025 - NO RES
-            'RES0.536_IND0.000_TRA0.630_AGR0.787_ENE0.647', # Base_MFR_2025 - NO IND
-            'RES0.536_IND0.495_TRA0.000_AGR0.787_ENE0.647', # Base_MFR_2025 - NO TRA
-            'RES0.536_IND0.495_TRA0.630_AGR0.000_ENE0.647', # Base_MFR_2025 - NO AGR
-            'RES0.536_IND0.495_TRA0.630_AGR0.787_ENE0.000', # Base_MFR_2025 - NO ENE
-            'RES0.000_IND0.483_TRA0.598_AGR0.787_ENE0.557', # SDS_MFR_2025 - NO RES
-            'RES0.507_IND0.000_TRA0.598_AGR0.787_ENE0.557', # SDS_MFR_2025 - NO IND
-            'RES0.507_IND0.483_TRA0.000_AGR0.787_ENE0.557', # SDS_MFR_2025 - NO TRA
-            'RES0.507_IND0.483_TRA0.598_AGR0.000_ENE0.557', # SDS_MFR_2025 - NO AGR
-            'RES0.507_IND0.483_TRA0.598_AGR0.787_ENE0.000', # SDS_MFR_2025 - NO ENE
-            'RES0.000_IND0.853_TRA0.760_AGR1.159_ENE0.935', # Base_CLE_2030 - NO RES
-            'RES0.769_IND0.000_TRA0.760_AGR1.159_ENE0.935', # Base_CLE_2030 - NO IND
-            'RES0.769_IND0.853_TRA0.000_AGR1.159_ENE0.935', # Base_CLE_2030 - NO TRA
-            'RES0.769_IND0.853_TRA0.760_AGR0.000_ENE0.935', # Base_CLE_2030 - NO AGR
-            'RES0.769_IND0.853_TRA0.760_AGR1.159_ENE0.000', # Base_CLE_2030 - NO ENE
-            'RES0.000_IND0.469_TRA0.540_AGR0.810_ENE0.661', # Base_MFR_2030 - NO RES
-            'RES0.409_IND0.000_TRA0.540_AGR0.810_ENE0.661', # Base_MFR_2030 - NO IND
-            'RES0.409_IND0.469_TRA0.000_AGR0.810_ENE0.661', # Base_MFR_2030 - NO TRA
-            'RES0.409_IND0.469_TRA0.540_AGR0.000_ENE0.661', # Base_MFR_2030 - NO AGR
-            'RES0.409_IND0.469_TRA0.540_AGR0.810_ENE0.000', # Base_MFR_2030 - NO ENE
-            'RES0.000_IND0.449_TRA0.483_AGR0.810_ENE0.517', # SDS_MFR_2030 - NO RES
-            'RES0.353_IND0.000_TRA0.483_AGR0.810_ENE0.517', # SDS_MFR_2030 - NO IND
-            'RES0.353_IND0.449_TRA0.000_AGR0.810_ENE0.517', # SDS_MFR_2030 - NO TRA
-            'RES0.353_IND0.449_TRA0.483_AGR0.000_ENE0.517', # SDS_MFR_2030 - NO AGR
-            'RES0.353_IND0.449_TRA0.483_AGR0.810_ENE0.000', # SDS_MFR_2030 - NO ENE
-            'RES0.000_IND0.821_TRA0.748_AGR1.180_ENE0.938', # Base_CLE_2035 - NO RES
-            'RES0.732_IND0.000_TRA0.748_AGR1.180_ENE0.938', # Base_CLE_2035 - NO IND
-            'RES0.732_IND0.821_TRA0.000_AGR1.180_ENE0.938', # Base_CLE_2035 - NO TRA
-            'RES0.732_IND0.821_TRA0.748_AGR0.000_ENE0.938', # Base_CLE_2035 - NO AGR
-            'RES0.732_IND0.821_TRA0.748_AGR1.180_ENE0.000', # Base_CLE_2035 - NO ENE
-            'RES0.000_IND0.438_TRA0.466_AGR0.821_ENE0.674', # Base_MFR_2035 - NO RES
-            'RES0.344_IND0.000_TRA0.466_AGR0.821_ENE0.674', # Base_MFR_2035 - NO IND
-            'RES0.344_IND0.438_TRA0.000_AGR0.821_ENE0.674', # Base_MFR_2035 - NO TRA
-            'RES0.344_IND0.438_TRA0.466_AGR0.000_ENE0.674', # Base_MFR_2035 - NO AGR
-            'RES0.344_IND0.438_TRA0.466_AGR0.821_ENE0.000', # Base_MFR_2035 - NO ENE
-            'RES0.000_IND0.414_TRA0.394_AGR0.821_ENE0.494', # SDS_MFR_2035 - NO RES
-            'RES0.296_IND0.000_TRA0.394_AGR0.821_ENE0.494', # SDS_MFR_2035 - NO IND
-            'RES0.296_IND0.414_TRA0.000_AGR0.821_ENE0.494', # SDS_MFR_2035 - NO TRA
-            'RES0.296_IND0.414_TRA0.394_AGR0.000_ENE0.494', # SDS_MFR_2035 - NO AGR
-            'RES0.296_IND0.414_TRA0.394_AGR0.821_ENE0.000', # SDS_MFR_2035 - NO ENE
-            'RES0.000_IND0.775_TRA0.707_AGR1.245_ENE0.897', # Base_CLE_2050 - NO RES
-            'RES0.681_IND0.000_TRA0.707_AGR1.245_ENE0.897', # Base_CLE_2050 - NO IND
-            'RES0.681_IND0.775_TRA0.000_AGR1.245_ENE0.897', # Base_CLE_2050 - NO TRA
-            'RES0.681_IND0.775_TRA0.707_AGR0.000_ENE0.897', # Base_CLE_2050 - NO AGR
-            'RES0.681_IND0.775_TRA0.707_AGR1.245_ENE0.000', # Base_CLE_2050 - NO ENE
-            'RES0.000_IND0.383_TRA0.377_AGR0.860_ENE0.678', # Base_MFR_2050 - NO RES
-            'RES0.221_IND0.000_TRA0.377_AGR0.860_ENE0.678', # Base_MFR_2050 - NO IND
-            'RES0.221_IND0.383_TRA0.000_AGR0.860_ENE0.678', # Base_MFR_2050 - NO TRA
-            'RES0.221_IND0.383_TRA0.377_AGR0.000_ENE0.678', # Base_MFR_2050 - NO AGR
-            'RES0.221_IND0.383_TRA0.377_AGR0.860_ENE0.000', # Base_MFR_2050 - NO ENE
-            'RES0.000_IND0.351_TRA0.272_AGR0.860_ENE0.433', # SDS_MFR_2050 - NO RES
-            'RES0.196_IND0.000_TRA0.272_AGR0.860_ENE0.433', # SDS_MFR_2050 - NO IND
-            'RES0.196_IND0.351_TRA0.000_AGR0.860_ENE0.433', # SDS_MFR_2050 - NO TRA
-            'RES0.196_IND0.351_TRA0.272_AGR0.000_ENE0.433', # SDS_MFR_2050 - NO AGR
-            'RES0.196_IND0.351_TRA0.272_AGR0.860_ENE0.000', # SDS_MFR_2050 - NO ENE
+        custom_inputs_main = [
+            np.array([[0.91, 0.95, 0.85, 1.05, 0.96]]), # Base_CLE_2020
+            np.array([[0.91, 0.95, 0.85, 1.05, 0.96]]), # Base_MFR_2020
+            np.array([[0.91, 0.95, 0.85, 1.05, 0.96]]), # SDS_MFR_2020
+            np.array([[0.68, 0.84, 0.71, 1.16, 0.93]]), # Base_CLE_2030
+            np.array([[0.33, 0.47, 0.48, 0.81, 0.69]]), # Base_MFR_2030
+            np.array([[0.27, 0.45, 0.41, 0.81, 0.55]]), # SDS_MFR_2030
+            np.array([[0.57, 0.75, 0.69, 1.2, 0.94]]), # Base_CLE_2040
+            np.array([[0.24, 0.41, 0.31, 0.83, 0.73]]), # Base_MFR_2040
+            np.array([[0.19, 0.38, 0.22, 0.83, 0.5]]), # SDS_MFR_2040
+            np.array([[0.52, 0.72, 0.65, 1.24, 0.91]]), # Base_CLE_2050
+            np.array([[0.2, 0.38, 0.29, 0.86, 0.72]]), # Base_MFR_2050
+            np.array([[0.18, 0.35, 0.2, 0.86, 0.46]]), # SDS_MFR_2050
         ]
+        custom_inputs = []
+        for custom_input in custom_inputs_main:
+            custom_input_res = np.copy(custom_input)
+            custom_input_ind = np.copy(custom_input)
+            custom_input_tra = np.copy(custom_input)
+            custom_input_agr = np.copy(custom_input)
+            custom_input_ene = np.copy(custom_input)
+            custom_input_nores = np.copy(custom_input)
+            custom_input_noind = np.copy(custom_input)
+            custom_input_notra = np.copy(custom_input)
+            custom_input_noagr = np.copy(custom_input)
+            custom_input_noene = np.copy(custom_input)
+            
+            custom_input_res[0][1:] = 1.0
+            custom_input_ind[0][0] = 1.0
+            custom_input_ind[0][2:] = 1.0
+            custom_input_tra[0][:2] = 1.0
+            custom_input_tra[0][3:] = 1.0
+            custom_input_agr[0][:3] = 1.0
+            custom_input_agr[0][4:] = 1.0
+            custom_input_ene[0][:4] = 1.0
+            
+            custom_input_nores[0][0] = 0.0
+            custom_input_noind[0][1] = 0.0
+            custom_input_notra[0][2] = 0.0
+            custom_input_noagr[0][3] = 0.0
+            custom_input_noene[0][4] = 0.0
+            
+            custom_inputs.append(custom_input)
+            custom_inputs.append(custom_input_res)
+            custom_inputs.append(custom_input_ind)
+            custom_inputs.append(custom_input_tra)
+            custom_inputs.append(custom_input_agr)
+            custom_inputs.append(custom_input_ene)
+            custom_inputs.append(custom_input_nores)
+            custom_inputs.append(custom_input_noind)
+            custom_inputs.append(custom_input_notra)
+            custom_inputs.append(custom_input_noagr)
+            custom_inputs.append(custom_input_noene)
+
+        custom_outputs_remaining = []
+        for custom_input in custom_inputs:
+            emission_config = f'RES{custom_input[0][0]:0.3f}_IND{custom_input[0][1]:0.3f}_TRA{custom_input[0][2]:0.3f}_AGR{custom_input[0][3]:0.3f}_ENE{custom_input[0][4]:0.3f}'
+            custom_outputs_remaining.append(emission_config)
 
     if top_down_2020_baseline:
-        emission_config_2020_baseline = np.array([0.64, 0.79, 0.63, 0.56, 0.44])
+        emission_config_2020_baseline = np.array([0.77, 0.58, 0.69, 0.72, 0.71]) # matching to PM2.5 only, top 1,000
         emission_configs = np.array(
             np.meshgrid(
-                np.linspace(emission_config_2020_baseline[0] - 0.40, emission_config_2020_baseline[0], 5),
-                np.linspace(emission_config_2020_baseline[1] - 0.40, emission_config_2020_baseline[1], 5),
-                np.linspace(emission_config_2020_baseline[2] - 0.40, emission_config_2020_baseline[2], 5),
-                np.linspace(emission_config_2020_baseline[3] - 0.40, emission_config_2020_baseline[3], 5),
-                np.linspace(emission_config_2020_baseline[4] - 0.40, emission_config_2020_baseline[4], 5),
+                np.linspace(emission_config_2020_baseline[0] * 0.50, emission_config_2020_baseline[0], 6), # 10% reduction increments from 2020 baseline up to 50%
+                np.linspace(emission_config_2020_baseline[1] * 0.50, emission_config_2020_baseline[1], 6),
+                np.linspace(emission_config_2020_baseline[2] * 0.50, emission_config_2020_baseline[2], 6),
+                np.linspace(emission_config_2020_baseline[3] * 0.50, emission_config_2020_baseline[3], 6),
+                np.linspace(emission_config_2020_baseline[4] * 0.50, emission_config_2020_baseline[4], 6),
             )
         ).T.reshape(-1, 5)
         custom_outputs_remaining = []
@@ -793,7 +723,8 @@ def main():
 
     # dask bag and process
     # run in 10 chunks over 10 cores, each chunk taking 2 minutes
-    custom_outputs_remaining = custom_outputs_remaining[0:n_outputs] 
+    custom_outputs_remaining = custom_outputs_remaining[0:n_outputs]
+    #custom_outputs_remaining = custom_outputs_remaining[n_outputs:]  
     print(f"predicting for {len(custom_outputs_remaining)} custom outputs ...")
     bag_custom_outputs = db.from_sequence(
         custom_outputs_remaining, npartitions=n_workers
