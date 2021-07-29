@@ -13,10 +13,10 @@ import dask.bag as db
 from dask_jobqueue import SGECluster
 from dask.distributed import Client
 
-#output = "PM2_5_DRY"
-output = "o3_6mDM8h_ppb"
+output = "PM2_5_DRY"
+#output = "o3_6mDM8h_ppb"
 
-year_range = '2015-2017'
+year_range = '2015-2016'
 reference_year = year_range.split('-')[0]
 comparison_year = year_range.split('-')[1]
 
@@ -63,7 +63,7 @@ df_obs = pd.read_csv(
 # stations left
 obs_files = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/china_measurements_corrected_uptofeb2021/*.nc")
 obs_files = [f"{obs_file[-8:-3]}" for obs_file in obs_files]
-obs_files_completed = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/*{output}*")
+obs_files_completed = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_adjusted_scaled/*{output}*")
 obs_files_completed = [f"{item[-12:-7]}" for item in obs_files_completed]
 obs_files_remaining_set = set(obs_files) - set(obs_files_completed)
 obs_files_remaining = [item for item in obs_files_remaining_set]
@@ -92,7 +92,7 @@ obs_change_abs.update({f"{station_id}_{output}": change_abs})
 obs_change_per.update({f"{station_id}_{output}": change_per})
 
 with xr.open_dataset(
-    f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}_scaled/ds_RES1.0_IND1.0_TRA1.0_AGR1.0_ENE1.0_{emulator_output}_popgrid_0.25deg_scaled.nc"
+    f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}_adjusted_scaled/ds_RES1.0_IND1.0_TRA1.0_AGR1.0_ENE1.0_{emulator_output}_popgrid_0.25deg_adjusted_scaled.nc"
 )[emulator_output] as ds:
     baseline = (
         ds.sel(lat=lat, method="nearest").sel(lon=lon, method="nearest").values
@@ -117,7 +117,7 @@ def filter_emission_configs(emission_config):
     inputs = emission_config.reshape(-1, 5)
     filename = f"RES{inputs[0][0]:.1f}_IND{inputs[0][1]:.1f}_TRA{inputs[0][2]:.1f}_AGR{inputs[0][3]:.1f}_ENE{inputs[0][4]:.1f}"
     with xr.open_dataset(
-        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}_scaled/ds_{filename}_{emulator_output}_popgrid_0.25deg_scaled.nc"
+        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{emulator_output}_adjusted_scaled/ds_{filename}_{emulator_output}_popgrid_0.25deg_adjusted_scaled.nc"
     )[emulator_output] as ds:
         prediction = (
             ds.sel(lat=lat, method="nearest").sel(lon=lon, method="nearest").values
@@ -147,7 +147,7 @@ def main():
         memory=f"32 G",
         resource_spec=f"h_vmem=32G",
         scheduler_options={
-            "dashboard_address": ":5757",
+            "dashboard_address": ":5761",
         },
         job_extra=[
             "-cwd",
@@ -155,7 +155,7 @@ def main():
             f"-pe smp {n_processes}",
             f"-l disk=32G",
         ],
-        local_directory=os.sep.join([os.environ.get("PWD"), "dask-find-emis-space"]),
+        local_directory=os.sep.join([os.environ.get("PWD"), "dask-find-emis-pm-space"]),
     )
 
     client = Client(cluster)
@@ -188,13 +188,13 @@ def main():
     station_diffs_per = {key: merged_per}   
     station_diffs_abs = {key: merged_abs}
     
-    joblib.dump(obs_change_abs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/obs_change_abs_{output}_{station_id}.joblib")
-    joblib.dump(obs_change_per, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/obs_change_per_{output}_{station_id}.joblib")
-    joblib.dump(baselines, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/baselines_{output}_{station_id}.joblib")
-    joblib.dump(targets, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/targets_{output}_{station_id}.joblib")
-    joblib.dump(target_diffs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/target_diffs_{output}_{station_id}.joblib")
-    joblib.dump(station_diffs_abs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/station_diffs_abs_{output}_{station_id}.joblib")
-    joblib.dump(station_diffs_per, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_scaled/station_diffs_per_{output}_{station_id}.joblib")
+    joblib.dump(obs_change_abs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_adjusted_scaled/obs_change_abs_{output}_{station_id}.joblib")
+    joblib.dump(obs_change_per, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_adjusted_scaled/obs_change_per_{output}_{station_id}.joblib")
+    joblib.dump(baselines, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_adjusted_scaled/baselines_{output}_{station_id}.joblib")
+    joblib.dump(targets, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_adjusted_scaled/targets_{output}_{station_id}.joblib")
+    joblib.dump(target_diffs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_adjusted_scaled/target_diffs_{output}_{station_id}.joblib")
+    joblib.dump(station_diffs_abs, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_adjusted_scaled/station_diffs_abs_{output}_{station_id}.joblib")
+    joblib.dump(station_diffs_per, f"/nobackup/earlacoa/machinelearning/data_annual/find_emissions_that_match_change_air_quality/{sub_folder}_adjusted_scaled/station_diffs_per_{output}_{station_id}.joblib")
 
     time_end = time.time() - time_start
     print(f"completed in {time_end:0.2f} seconds, or {time_end / 60:0.2f} minutes, or {time_end / 3600:0.2f} hours")
@@ -205,4 +205,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

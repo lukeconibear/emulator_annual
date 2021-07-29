@@ -11,11 +11,11 @@ from dask_jobqueue import SGECluster
 from dask.distributed import Client
 import joblib
 
-output = "o3_6mDM8h"
-#output = 'PM2_5_DRY'
+#output = "o3_6mDM8h"
+output = 'PM2_5_DRY'
 
 with xr.open_dataset(
-    "/nobackup/earlacoa/health/data/gpw_v4_population_count_adjusted_to_2015_unwpp_country_totals_rev11_2015_15_min.nc"
+    "/nobackup/earlacoa/health/data/gpw-v4-population-count-adjusted-to-2015-unwpp-country-totals-2015-qtr-deg.nc"
 ) as ds:
     pop_2015 = ds["pop"].load()
 
@@ -58,21 +58,16 @@ def popweight_outputs_for_input(custom_input):
         + "_ENE"
         + str(np.round(custom_input[0][4], decimals=1))
     )
-    filename = f"ds_{sim}_{output}_popgrid_0.25deg_scaled.nc"
+    filename = f"ds_{sim}_{output}_popgrid_0.25deg_adjusted_scaled.nc"
     print(f"processing for {filename} ...")
-    #    try:
     with xr.open_dataset(
-        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_scaled/{filename}"
+        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_adjusted_scaled/{filename}"
     ) as ds:
         ds_custom_output = ds[output].load()
 
     clip = rasterize(shapes, ds_custom_output.coords, longitude="lon", latitude="lat")
     ds_custom_output_clipped = ds_custom_output.where(clip == 0, other=np.nan)
     return filename, np.nansum((ds_custom_output_clipped * pop_2015) / pop_2015_clipped.sum())
-
-
-#    except:
-#    RuntimeError
 
 
 def main():
@@ -95,7 +90,7 @@ def main():
             f"-pe smp {n_processes}",
             f"-l disk=1G",
         ],
-        local_directory=os.sep.join([os.environ.get("PWD"), "dask-worker-space"]),
+        local_directory=os.sep.join([os.environ.get("PWD"), "dask-worker-space_popweighted_region"]),
     )
 
     client = Client(cluster)
@@ -123,7 +118,7 @@ def main():
     print("saving ...")
     joblib.dump(
         outputs_popweighted,
-        f"/nobackup/earlacoa/machinelearning/data_annual/popweighted/popweighted_{region}_{output}_0.25deg_scaled.joblib",
+        f"/nobackup/earlacoa/machinelearning/data_annual/popweighted/popweighted_{region}_{output}_0.25deg_adjusted_scaled.joblib",
     )
 
     client.close()

@@ -14,11 +14,11 @@ from dask_jobqueue import SGECluster
 from dask.distributed import Client
 from numba import njit, typeof, typed, types, jit
 
-#output = "PM2_5_DRY"
-output = "o3_6mDM8h"
+output = "PM2_5_DRY"
+#output = "o3_6mDM8h"
 
-normal = False # 20 percent intervals
-extra = True # additional ones for the emission trend matching
+normal = True # 20 percent intervals
+extra = False # additional ones for the emission trend matching
 climate_cobenefits = False
 top_down_2020_baseline = False
 
@@ -302,7 +302,7 @@ def calc_hia_gbd2017_o3(o3, pop_z_2015, dict_ages, dict_bm, dict_af):
 
 def health_impact_assessment_pm25(custom_output):
     with xr.open_dataset(
-        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_scaled/ds_{custom_output}_{output}_popgrid_0.25deg_scaled.nc"
+        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_adjusted_scaled/ds_{custom_output}_{output}_popgrid_0.25deg_adjusted_scaled.nc"
     ) as ds:
         pm25 = ds["PM2_5_DRY"].values
         lon = ds.lon.values
@@ -311,10 +311,10 @@ def health_impact_assessment_pm25(custom_output):
     xx, yy = np.meshgrid(lon, lat)
 
     hia_ncdlri = calc_hia_gemm_ncdlri(pm25, pop_z_2015, dict_ages, dict_bm, dict_gemm)
-    np.savez_compressed(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/hia_{output}_{custom_output}_scaled.npz",
-        hia_ncdlri=hia_ncdlri,
-    )
+    #np.savez_compressed(
+    #    f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/hia_{output}_{custom_output}_adjusted_scaled.npz",
+    #    hia_ncdlri=hia_ncdlri,
+    #)
 
     countries = ['China', 'Hong Kong', 'Macao', 'Taiwan']
     provinces = ['Anhui', 'Beijing', 'Chongqing', 'Fujian', 'Gansu', 'Guangdong', 'Guangxi', 'Guizhou', 'Hainan', 'Hebei', 'Heilongjiang', 'Henan', 'Hubei', 'Hunan', 'Jiangsu', 'Jiangxi', 'Jilin', 'Liaoning', 'Nei Mongol', 'Ningxia Hui', 'Qinghai', 'Shaanxi', 'Shandong', 'Shanghai', 'Shanxi', 'Sichuan', 'Tianjin', 'Xinjiang Uygur', 'Xizang', 'Yunnan', 'Zhejiang']
@@ -324,45 +324,45 @@ def health_impact_assessment_pm25(custom_output):
         hia_ncdlri,
         "ncdlri",
         clips,
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/",
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/",
         lat,
         lon,
         countries,
     )
     df_country_hia_ncdlri.to_csv(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/df_country_hia_{output}_{custom_output}_scaled.csv"
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/df_country_hia_{output}_{custom_output}_adjusted_scaled.csv"
     )
 
     df_province_hia_ncdlri = shapefile_hia(
         hia_ncdlri,
         "ncdlri",
         clips,
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/",
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/",
         lat,
         lon,
         provinces,
     )
     df_province_hia_ncdlri.to_csv(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/df_province_hia_{output}_{custom_output}_scaled.csv"
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/df_province_hia_{output}_{custom_output}_adjusted_scaled.csv"
     )
 
     df_prefecture_hia_ncdlri = shapefile_hia(
         hia_ncdlri,
         "ncdlri",
         clips,
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/",
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/",
         lat,
         lon,
         prefectures,
     )
     df_prefecture_hia_ncdlri.to_csv(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/df_prefecture_hia_{output}_{custom_output}_scaled.csv"
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/df_prefecture_hia_{output}_{custom_output}_adjusted_scaled.csv"
     )
 
 
 def health_impact_assessment_o3(custom_output):
     with xr.open_dataset(
-        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_scaled/ds_{custom_output}_{output}_popgrid_0.25deg_scaled.nc"
+        f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_adjusted_scaled/ds_{custom_output}_{output}_popgrid_0.25deg_adjusted_scaled.nc"
     ) as ds:
         o3_6mDM8h = ds["o3_6mDM8h"].values
         lon = ds.lon.values
@@ -371,10 +371,10 @@ def health_impact_assessment_o3(custom_output):
     xx, yy = np.meshgrid(lon, lat)
 
     hia_o3 = calc_hia_gbd2017_o3(o3_6mDM8h, pop_z_2015, dict_ages, dict_bm, dict_af)
-    np.savez_compressed(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/hia_{output}_{custom_output}_scaled.npz",
-        hia_o3=hia_o3,
-    )
+    #np.savez_compressed(
+    #    f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/hia_{output}_{custom_output}_adjusted_scaled.npz",
+    #    hia_o3=hia_o3,
+    #)
 
     countries = ['China', 'Hong Kong', 'Macao', 'Taiwan']
     provinces = ['Anhui', 'Beijing', 'Chongqing', 'Fujian', 'Gansu', 'Guangdong', 'Guangxi', 'Guizhou', 'Hainan', 'Hebei', 'Heilongjiang', 'Henan', 'Hubei', 'Hunan', 'Jiangsu', 'Jiangxi', 'Jilin', 'Liaoning', 'Nei Mongol', 'Ningxia Hui', 'Qinghai', 'Shaanxi', 'Shandong', 'Shanghai', 'Shanxi', 'Sichuan', 'Tianjin', 'Xinjiang Uygur', 'Xizang', 'Yunnan', 'Zhejiang']
@@ -384,39 +384,39 @@ def health_impact_assessment_o3(custom_output):
         hia_o3,
         "copd",
         clips,
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/",
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/",
         lat,
         lon,
         countries,
     )
     df_country_hia_o3.to_csv(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/df_country_hia_{output}_{custom_output}_scaled.csv"
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/df_country_hia_{output}_{custom_output}_adjusted_scaled.csv"
     )
 
     df_province_hia_o3 = shapefile_hia(
         hia_o3,
         "copd",
         clips,
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/",
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/",
         lat,
         lon,
         provinces,
     )
     df_province_hia_o3.to_csv(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/df_province_hia_{output}_{custom_output}_scaled.csv"
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/df_province_hia_{output}_{custom_output}_adjusted_scaled.csv"
     )
 
     df_prefecture_hia_o3 = shapefile_hia(
         hia_o3,
         "copd",
         clips,
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/",
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/",
         lat,
         lon,
         prefectures,
     )
     df_prefecture_hia_o3.to_csv(
-        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/df_prefecture_hia_{output}_{custom_output}_scaled.csv"
+        f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/df_prefecture_hia_{output}_{custom_output}_adjusted_scaled.csv"
     )
 
 
@@ -525,7 +525,7 @@ def main():
             f"-pe smp {n_processes}",
             f"-l disk=48G",
         ],
-        local_directory=os.sep.join([os.environ.get("PWD"), "dask-hia-ozone-space"]),
+        local_directory=os.sep.join([os.environ.get("PWD"), "dask-hia-pm-space"]),
     )
 
     client = Client(cluster)
@@ -537,15 +537,15 @@ def main():
     # find remaining inputs
     if normal:
         custom_outputs = glob.glob(
-            f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_scaled/ds*{output}_popgrid_0.25deg_scaled.nc"
+            f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_adjusted_scaled/ds*{output}_popgrid_0.25deg_adjusted_scaled.nc"
         )
         custom_outputs_completed = glob.glob(
-            f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_scaled/hia_{output}_*_scaled.npz"
+            f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/df_country_hia_*.csv"
         )
         custom_outputs_remaining_set = set(
-            [item.split("/")[-1][3 : -1 - len(output) - 19] for item in custom_outputs]
+            [item.split("/")[-1][3 : -1 - len(output) - 19 - 7] for item in custom_outputs]
         ) - set(
-            [item.split("/")[-1][4 + len(output) + 1 : -4] for item in custom_outputs_completed]
+            [item.split("/")[-1][15 + len(output) + 1 : - 4 - 7] for item in custom_outputs_completed]
         )
         custom_outputs_remaining = [item for item in custom_outputs_remaining_set]
         print(f"custom outputs remaining for {output}: {len(custom_outputs_remaining)} - 10% intervals with {int(100 * len(custom_outputs_remaining_set) / 16**5)}% remaining")
@@ -583,26 +583,26 @@ def main():
             np.array([[1.06, 1.12, 0.99, 1.01, 1.12]]), # bottom-up 2014
             np.array([[0.92, 0.84, 0.97, 0.99, 0.94]]), # bottom-up 2016
             np.array([[0.84, 0.81, 0.99, 0.99, 0.89]]), # bottom-up 2017
-            np.array([[0.93, 1.00, 0.77, 0.84, 0.73]]), # top-down, 2016, both
-            np.array([[0.87, 0.86, 0.75, 0.72, 0.66]]), # top-down, 2017, both
-            np.array([[0.75, 0.87, 0.75, 0.64, 0.63]]), # top-down, 2018, both
-            np.array([[0.77, 0.81, 0.71, 0.67, 0.66]]), # top-down, 2019, both
-            np.array([[0.67, 0.71, 0.66, 0.60, 0.62]]), # top-down, 2020, both
-            np.array([[0.93, 0.98, 0.73, 0.84, 0.72]]), # top-down, 2016, either
-            np.array([[0.94, 0.94, 0.76, 0.79, 0.60]]), # top-down, 2017, either
-            np.array([[0.81, 1.04, 0.74, 0.63, 0.52]]), # top-down, 2018, either
-            np.array([[0.84, 0.87, 0.72, 0.71, 0.59]]), # top-down, 2019, either
-            np.array([[0.72, 0.80, 0.68, 0.54, 0.51]]), # top-down, 2020, either
-            np.array([[0.93, 0.97, 0.76, 0.84, 0.73]]), # top-down, 2016, PM2_5_DRY
-            np.array([[0.90, 0.94, 0.75, 0.84, 0.74]]), # top-down, 2017, PM2_5_DRY
-            np.array([[0.82, 0.85, 0.72, 0.81, 0.73]]), # top-down, 2018, PM2_5_DRY
-            np.array([[0.82, 0.78, 0.75, 0.83, 0.72]]), # top-down, 2019, PM2_5_DRY
-            np.array([[0.77, 0.58, 0.69, 0.72, 0.71]]), # top-down, 2020, PM2_5_DRY
-            np.array([[0.77, 1.01, 0.70, 0.69, 0.72]]), # top-down, 2016, o3_6mDM8h
-            np.array([[0.82, 0.76, 0.77, 0.64, 0.43]]), # top-down, 2017, o3_6mDM8h
-            np.array([[0.86, 1.09, 0.79, 0.60, 0.48]]), # top-down, 2018, o3_6mDM8h
-            np.array([[0.80, 0.99, 0.65, 0.57, 0.49]]), # top-down, 2019, o3_6mDM8h
-            np.array([[0.87, 0.96, 0.68, 0.56, 0.48]]), # top-down, 2020, o3_6mDM8h
+            np.array([[0.76 , 0.934, 0.735, 0.683, 0.708]]),
+            np.array([[0.704, 0.786, 0.73 , 0.659, 0.6  ]]),
+            np.array([[0.712, 0.703, 0.725, 0.676, 0.649]]),
+            np.array([[0.739, 0.668, 0.701, 0.686, 0.682]]),
+            np.array([[0.67 , 0.609, 0.709, 0.621, 0.661]]),
+            np.array([[0.744, 0.904, 0.778, 0.678, 0.716]]),
+            np.array([[0.771, 0.835, 0.711, 0.685, 0.544]]),
+            np.array([[0.647, 0.945, 0.746, 0.588, 0.473]]),
+            np.array([[0.657, 0.745, 0.714, 0.613, 0.591]]),
+            np.array([[0.582, 0.7  , 0.672, 0.5  , 0.492]]),
+            np.array([[0.803, 0.835, 0.742, 0.71 , 0.717]]),
+            np.array([[0.721, 0.863, 0.712, 0.74 , 0.709]]),
+            np.array([[0.661, 0.674, 0.694, 0.742, 0.715]]),
+            np.array([[0.701, 0.642, 0.669, 0.681, 0.679]]),
+            np.array([[0.604, 0.399, 0.659, 0.613, 0.724]]),
+            np.array([[0.769, 1.009, 0.697, 0.69 , 0.72 ]]),
+            np.array([[0.824, 0.759, 0.767, 0.641, 0.429]]),
+            np.array([[0.858, 1.092, 0.794, 0.604, 0.475]]),
+            np.array([[0.8  , 0.987, 0.648, 0.57 , 0.493]]),
+            np.array([[0.867, 0.957, 0.677, 0.558, 0.477]])
         ]
         custom_inputs = []
         for custom_input in custom_inputs_main:
@@ -616,22 +616,36 @@ def main():
             custom_input_notra = np.copy(custom_input)
             custom_input_noagr = np.copy(custom_input)
             custom_input_noene = np.copy(custom_input)
-            
+            custom_input_resonly = np.copy(custom_input)
+            custom_input_indonly = np.copy(custom_input)
+            custom_input_traonly = np.copy(custom_input)
+            custom_input_agronly = np.copy(custom_input)
+            custom_input_eneonly = np.copy(custom_input)
+
             custom_input_res[0][1:] = 1.0
-            custom_input_ind[0][0] = 1.0
+            custom_input_ind[0][0]  = 1.0
             custom_input_ind[0][2:] = 1.0
             custom_input_tra[0][:2] = 1.0
             custom_input_tra[0][3:] = 1.0
             custom_input_agr[0][:3] = 1.0
             custom_input_agr[0][4:] = 1.0
             custom_input_ene[0][:4] = 1.0
-            
+
             custom_input_nores[0][0] = 0.0
             custom_input_noind[0][1] = 0.0
             custom_input_notra[0][2] = 0.0
             custom_input_noagr[0][3] = 0.0
             custom_input_noene[0][4] = 0.0
             
+            custom_input_resonly[0][1:] = 0.0
+            custom_input_indonly[0][0]  = 0.0
+            custom_input_indonly[0][2:] = 0.0
+            custom_input_traonly[0][:2] = 0.0
+            custom_input_traonly[0][3:] = 0.0
+            custom_input_agronly[0][:3] = 0.0
+            custom_input_agronly[0][4:] = 0.0
+            custom_input_eneonly[0][:4] = 0.0
+
             custom_inputs.append(custom_input)
             custom_inputs.append(custom_input_res)
             custom_inputs.append(custom_input_ind)
@@ -643,6 +657,16 @@ def main():
             custom_inputs.append(custom_input_notra)
             custom_inputs.append(custom_input_noagr)
             custom_inputs.append(custom_input_noene)
+            custom_inputs.append(custom_input_resonly)
+            custom_inputs.append(custom_input_indonly)
+            custom_inputs.append(custom_input_traonly)
+            custom_inputs.append(custom_input_agronly)
+            custom_inputs.append(custom_input_eneonly)
+
+        custom_outputs_remaining = []
+        for custom_input in custom_inputs:
+            emission_config = f'RES{custom_input[0][0]:0.3f}_IND{custom_input[0][1]:0.3f}_TRA{custom_input[0][2]:0.3f}_AGR{custom_input[0][3]:0.3f}_ENE{custom_input[0][4]:0.3f}'
+            custom_outputs_remaining.append(emission_config)
 
     if climate_cobenefits:
         custom_inputs_main = [
@@ -671,22 +695,36 @@ def main():
             custom_input_notra = np.copy(custom_input)
             custom_input_noagr = np.copy(custom_input)
             custom_input_noene = np.copy(custom_input)
-            
+            custom_input_resonly = np.copy(custom_input)
+            custom_input_indonly = np.copy(custom_input)
+            custom_input_traonly = np.copy(custom_input)
+            custom_input_agronly = np.copy(custom_input)
+            custom_input_eneonly = np.copy(custom_input)
+
             custom_input_res[0][1:] = 1.0
-            custom_input_ind[0][0] = 1.0
+            custom_input_ind[0][0]  = 1.0
             custom_input_ind[0][2:] = 1.0
             custom_input_tra[0][:2] = 1.0
             custom_input_tra[0][3:] = 1.0
             custom_input_agr[0][:3] = 1.0
             custom_input_agr[0][4:] = 1.0
             custom_input_ene[0][:4] = 1.0
-            
+
             custom_input_nores[0][0] = 0.0
             custom_input_noind[0][1] = 0.0
             custom_input_notra[0][2] = 0.0
             custom_input_noagr[0][3] = 0.0
             custom_input_noene[0][4] = 0.0
             
+            custom_input_resonly[0][1:] = 0.0
+            custom_input_indonly[0][0]  = 0.0
+            custom_input_indonly[0][2:] = 0.0
+            custom_input_traonly[0][:2] = 0.0
+            custom_input_traonly[0][3:] = 0.0
+            custom_input_agronly[0][:3] = 0.0
+            custom_input_agronly[0][4:] = 0.0
+            custom_input_eneonly[0][:4] = 0.0
+
             custom_inputs.append(custom_input)
             custom_inputs.append(custom_input_res)
             custom_inputs.append(custom_input_ind)
@@ -698,6 +736,11 @@ def main():
             custom_inputs.append(custom_input_notra)
             custom_inputs.append(custom_input_noagr)
             custom_inputs.append(custom_input_noene)
+            custom_inputs.append(custom_input_resonly)
+            custom_inputs.append(custom_input_indonly)
+            custom_inputs.append(custom_input_traonly)
+            custom_inputs.append(custom_input_agronly)
+            custom_inputs.append(custom_input_eneonly)
 
         custom_outputs_remaining = []
         for custom_input in custom_inputs:
@@ -705,7 +748,7 @@ def main():
             custom_outputs_remaining.append(emission_config)
 
     if top_down_2020_baseline:
-        emission_config_2020_baseline = np.array([0.77, 0.58, 0.69, 0.72, 0.71]) # matching to PM2.5 only, top 1,000
+        emission_config_2020_baseline = np.array([0.604, 0.399, 0.659, 0.613, 0.724]) # matching to PM2.5 only, top 1,000
         emission_configs = np.array(
             np.meshgrid(
                 np.linspace(emission_config_2020_baseline[0] * 0.50, emission_config_2020_baseline[0], 6), # 10% reduction increments from 2020 baseline up to 50%
@@ -715,16 +758,26 @@ def main():
                 np.linspace(emission_config_2020_baseline[4] * 0.50, emission_config_2020_baseline[4], 6),
             )
         ).T.reshape(-1, 5)
-        custom_outputs_remaining = []
+        emission_configs_total = []
         for emission_config in emission_configs:
-            custom_outputs_remaining.append(f'RES{round(emission_config[0], 2)}_IND{round(emission_config[1], 2)}_TRA{round(emission_config[2], 2)}_AGR{round(emission_config[3], 2)}_ENE{round(emission_config[4], 2)}')
+            emission_configs_total.append(f'RES{round(emission_config[0], 3):.3f}_IND{round(emission_config[1], 3):.3f}_TRA{round(emission_config[2], 3):.3f}_AGR{round(emission_config[3], 3):.3f}_ENE{round(emission_config[4], 3):.3f}')
+
+
+        custom_outputs_completed = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/df_country_hia_*.csv")
+        emission_configs_completed = []
+        for custom_output_completed in custom_outputs_completed:
+            emission_configs_completed.append(re.findall(r'RES\d+.\d+_IND\d+.\d+_TRA\d+.\d+_AGR\d+.\d+_ENE\d+.\d+', custom_output_completed)[0])
+
+        emission_configs_remaining_set = set(emission_configs_total) - set(emission_configs_completed)
+        custom_outputs_remaining = [item for item in emission_configs_remaining_set]
+        print(f"custom outputs remaining: {len(custom_outputs_remaining)}, {int(100 * len(emission_configs_remaining_set) / len(emission_configs_total))}%")
 
     # --------------------------------------------------
 
     # dask bag and process
     # run in 10 chunks over 10 cores, each chunk taking 2 minutes
     custom_outputs_remaining = custom_outputs_remaining[0:n_outputs]
-    #custom_outputs_remaining = custom_outputs_remaining[n_outputs:]  
+    #custom_outputs_remaining = custom_outputs_remaining[3*n_outputs:]  
     print(f"predicting for {len(custom_outputs_remaining)} custom outputs ...")
     bag_custom_outputs = db.from_sequence(
         custom_outputs_remaining, npartitions=n_workers

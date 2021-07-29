@@ -1,88 +1,99 @@
 #!/usr/bin/env python3
-import glob
 import os
 import re
-import sys
 import time
+import glob
+import xarray as xr
+import numpy as np
+import pandas as pd
+import geopandas as gpd
 import dask.bag as db
 from dask_jobqueue import SGECluster
 from dask.distributed import Client
-import joblib
-import numpy as np
-import pandas as pd
-import xarray as xr
+from cutshapefile import transform_from_latlon, rasterize
 
-output = 'PM2_5_DRY'
-#output = 'o3_6mDM8h'
+output = "PM2_5_DRY"
 
 normal = False # 20 percent intervals
 extra = False # additional ones for the emission trend matching
 climate_cobenefits = True
 top_down_2020_baseline = False
 
-data_dir = sys.argv[1]
-out_dir = sys.argv[2]
-EMULATORS = None
+# --- input data ---
+# pop
+with xr.open_dataset("/nobackup/earlacoa/health/data/gpw-v4-population-count-adjusted-to-2015-unwpp-country-totals-2015-qtr-deg.nc") as ds:
+    pop_2015 = ds["pop"]
 
-def get_emulator_files(file_path=data_dir, file_pattern="emulator*"):
-    emulator_files = glob.glob(os.sep.join([file_path, file_pattern]))
-    return emulator_files
+pop_lat = pop_2015["lat"].values
+pop_lon = pop_2015["lon"].values
+pop_grid = xr.Dataset({"lat": (["lat"], pop_lat), "lon": (["lon"], pop_lon),})
 
+# emissions
+with xr.open_dataset('/nobackup/earlacoa/machinelearning/data_annual/adjustment_factors_for_double_emissions.nc') as ds:
+    scaling_emissions = ds.copy()
 
-def load_emulator(emulator_file):
-    lat, lon = [float(item) for item in re.findall(r"\d+\.\d+", emulator_file)]
-    emulator = joblib.load(emulator_file)
-    return lat, lon, emulator
+# shapefile
+shapefile = '/nobackup/earlacoa/health/data/china_taiwan_hongkong_macao.shp'
 
+def crop_ds_to_shapefile(ds, shapefile):
+    # load shapefile (single multipolygon) and extract shapes
+    shapefile = gpd.read_file(shapefile)
+    shapes = [(shape, index) for index, shape in enumerate(shapefile.geometry)]
+    
+    # apply shapefile to geometry, default: inside shapefile == 0, outside shapefile == np.nan
+    ds['shapefile'] = rasterize(shapes, ds.coords, longitude='lon', latitude='lat') 
 
-def create_dataset(results):
-    res = results[0]["res"]
-    ind = results[0]["ind"]
-    tra = results[0]["tra"]
-    agr = results[0]["agr"]
-    ene = results[0]["ene"]
+    # change to more intuitive labelling of 1 for inside shapefile and np.nan for outside shapefile
+    # if condition preserve (outside shapefile, as inside defaults to 0), otherwise (1, to mark in shapefile)
+    ds['shapefile'] = ds.shapefile.where(cond=ds.shapefile!=0, other=1) 
+
+    # example: crop data to shapefile
+    # if condition (not in shapefile) preserve, otherwise (in shapefile, and scale)
+    ds = ds.where(cond=ds.shapefile==1, other=np.nan) 
+    
+    return ds
+
+# -------
+
+def adjust(emission_config):
+    path_concentrations = '/nobackup/earlacoa/machinelearning/data_annual/predictions/'
+    
+    emission_config_res, emission_config_ind, emission_config_tra, emission_config_agr, emission_config_ene = re.findall(r'\d+.\d+', emission_config)
+    
     if normal:
-        filename = f"RES{res:.1f}_IND{ind:.1f}_TRA{tra:.1f}_AGR{agr:.1f}_ENE{ene:.1f}"
-    if extra or top_down_2020_baseline:
-        filename = f"RES{res:.3f}_IND{ind:.3f}_TRA{tra:.3f}_AGR{agr:.3f}_ENE{ene:.3f}"
-    if climate_cobenefits:
-        filename = f"RES{res:.3f}_IND{ind:.3f}_TRA{tra:.3f}_AGR{agr:.3f}_ENE{ene:.3f}"
+        zero = '0.0'
+    elif extra or climate_cobenefits or top_down_2020_baseline:
+        zero = '0.000'
+        
+    conc_background = xr.open_dataset(f'{path_concentrations}/{output}/ds_RES0.0_IND0.0_TRA0.0_AGR0.0_ENE0.0_{output}_popgrid_0.25deg.nc')[output]
+    conc_emission_config = xr.open_dataset(f'{path_concentrations}/{output}/ds_{emission_config}_{output}_popgrid_0.25deg.nc')[output]
+    conc_res_only = xr.open_dataset(f'{path_concentrations}/{output}/ds_RES{emission_config_res}_IND{zero}_TRA{zero}_AGR{zero}_ENE{zero}_{output}_popgrid_0.25deg.nc')[output]
+    conc_ind_only = xr.open_dataset(f'{path_concentrations}/{output}/ds_RES{zero}_IND{emission_config_ind}_TRA{zero}_AGR{zero}_ENE{zero}_{output}_popgrid_0.25deg.nc')[output]
+    conc_tra_only = xr.open_dataset(f'{path_concentrations}/{output}/ds_RES{zero}_IND{zero}_TRA{emission_config_tra}_AGR{zero}_ENE{zero}_{output}_popgrid_0.25deg.nc')[output]
+    conc_agr_only = xr.open_dataset(f'{path_concentrations}/{output}/ds_RES{zero}_IND{zero}_TRA{zero}_AGR{emission_config_agr}_ENE{zero}_{output}_popgrid_0.25deg.nc')[output]
+    conc_ene_only = xr.open_dataset(f'{path_concentrations}/{output}/ds_RES{zero}_IND{zero}_TRA{zero}_AGR{zero}_ENE{emission_config_ene}_{output}_popgrid_0.25deg.nc')[output]
 
-    lat = [item["lat"] for item in results]
-    lon = [item["lon"] for item in results]
-    result = [item["result"] for item in results]
+    # adjust each sector only conc
+    conc_all_sectors_only_adjusted = (
+        ( (conc_res_only - conc_background) * scaling_emissions['RES'] ) + 
+        ( (conc_ind_only - conc_background) * scaling_emissions['IND'] ) + 
+        ( (conc_tra_only - conc_background) * scaling_emissions['TRA'] ) + 
+        ( (conc_agr_only - conc_background) * scaling_emissions['AGR'] ) + 
+        ( (conc_ene_only - conc_background) * scaling_emissions['ENE'] )   
+    )
 
-    df_results = pd.DataFrame([lat, lon, result]).T
-    df_results.columns = ["lat", "lon", output]
-    df_results = df_results.set_index(["lat", "lon"]).sort_index()
-    ds_custom_output = xr.Dataset.from_dataframe(df_results)
-    ds_custom_output.to_netcdf(f"{out_dir}ds_{filename}_{output}.nc")
-    print(f"completed for {filename}")
+    # where: if (positive and not NaN, then keep), else (0.0)
+    conc_all_sectors_only_adjusted = conc_all_sectors_only_adjusted.where(
+        (conc_all_sectors_only_adjusted > 0.0) | np.isnan(conc_all_sectors_only_adjusted),
+        0.0)
+    conc_emission_config_adjusted = conc_all_sectors_only_adjusted + conc_background
+    
+    ds = conc_emission_config_adjusted.to_dataset(name=output)
+    ds = crop_ds_to_shapefile(ds, shapefile)
+    ds_adjusted = ds[output].to_dataset(name=output)
+    ds_adjusted.to_netcdf(f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_adjusted/ds_{emission_config}_{output}_popgrid_0.25deg_adjusted.nc")
 
-
-def custom_predicts(custom_input):
-    def emulator_wrap(emulator):
-        lat, lon, emulator = emulator
-        return {
-            "lat": lat,
-            "lon": lon,
-            "res": custom_input[0][0],
-            "ind": custom_input[0][1],
-            "tra": custom_input[0][2],
-            "agr": custom_input[0][3],
-            "ene": custom_input[0][4],
-            "result": emulator.predict(custom_input)[0],
-        }
-
-    global EMULATORS
-    if not EMULATORS:
-        emulator_files = get_emulator_files()
-        EMULATORS = list(map(load_emulator, emulator_files))
-    emulators = EMULATORS
-
-    results = list(map(emulator_wrap, emulators))
-    create_dataset(results)
-
+# ----------
 
 def main():
     # dask cluster and client
@@ -93,8 +104,8 @@ def main():
     cluster = SGECluster(
         interface="ib0",
         walltime="01:00:00",
-        memory=f"2 G",
-        resource_spec=f"h_vmem=2G",
+        memory=f"64 G",
+        resource_spec=f"h_vmem=64G",
         scheduler_options={
             "dashboard_address": ":5757",
         },
@@ -102,9 +113,9 @@ def main():
             "-cwd",
             "-V",
             f"-pe smp {n_processes}",
-            f"-l disk=1G",
+            f"-l disk=32G",
         ],
-        local_directory=os.sep.join([os.environ.get("PWD"), "dask-worker-space"]),
+        local_directory=os.sep.join([os.environ.get("PWD"), "dask-worker-scale-space"]),
     )
 
     client = Client(cluster)
@@ -113,41 +124,20 @@ def main():
 
     time_start = time.time()
 
-    # custom inputs
+    # scale custom outputs
     if normal:
-        matrix_stacked = np.array(
+        emission_configs = np.array(
             np.meshgrid(
-                np.linspace(0, 1.5, 16),  # 1.5 and 16 for 0.1, 1.5 and 6 for 0.3, 1.4 and 8 for 0.2
-                np.linspace(0, 1.5, 16),
-                np.linspace(0, 1.5, 16),
-                np.linspace(0, 1.5, 16),
-                np.linspace(0, 1.5, 16),
+                np.linspace(0.0, 1.4, 8),
+                np.linspace(0.0, 1.4, 8),
+                np.linspace(0.0, 1.4, 8),
+                np.linspace(0.0, 1.4, 8),
+                np.linspace(0.0, 1.4, 8),
             )
         ).T.reshape(-1, 5)
-        custom_inputs_set = set(
-            tuple(map(float, map("{:.1f}".format, item))) for item in matrix_stacked
-        )
-
-        custom_inputs_completed_filenames = glob.glob(
-            f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}/ds*{output}*"
-        )
-        custom_inputs_completed_list = []
-        for custom_inputs_completed_filename in custom_inputs_completed_filenames:
-            custom_inputs_completed_list.append(
-                [
-                    float(item)
-                    for item in re.findall(r"\d+\.\d+", custom_inputs_completed_filename)
-                ]
-            )
-
-        custom_inputs_completed_set = set(
-            tuple(item) for item in custom_inputs_completed_list
-        )
-        custom_inputs_remaining_set = custom_inputs_set - custom_inputs_completed_set
-        custom_inputs = [
-            np.array(item).reshape(1, -1) for item in custom_inputs_remaining_set
-        ]
-        print(f"custom inputs remaining for {output}: {len(custom_inputs)}")
+        emission_configs_20percentintervals = []
+        for emission_config in emission_configs:
+            emission_configs_20percentintervals.append(f'RES{round(emission_config[0], 1)}_IND{round(emission_config[1], 1)}_TRA{round(emission_config[2], 1)}_AGR{round(emission_config[3], 1)}_ENE{round(emission_config[4], 1)}')
 
     if extra:
         custom_inputs_main = [
@@ -238,41 +228,10 @@ def main():
             custom_inputs.append(custom_input_agronly)
             custom_inputs.append(custom_input_eneonly)
 
-        # just for emulator_predictions.py as this is required in order to adjust for double emissions
-        custom_inputs_temp = custom_inputs.copy()
-        for custom_input in custom_inputs_temp:
-            custom_input_resonly = np.copy(custom_input)
-            custom_input_indonly = np.copy(custom_input)
-            custom_input_traonly = np.copy(custom_input)
-            custom_input_agronly = np.copy(custom_input)
-            custom_input_eneonly = np.copy(custom_input)
-            
-            custom_input_resonly[0][1:] = 0.0
-            custom_input_indonly[0][0]  = 0.0
-            custom_input_indonly[0][2:] = 0.0
-            custom_input_traonly[0][:2] = 0.0
-            custom_input_traonly[0][3:] = 0.0
-            custom_input_agronly[0][:3] = 0.0
-            custom_input_agronly[0][4:] = 0.0
-            custom_input_eneonly[0][:4] = 0.0
-            
-            custom_inputs.append(custom_input_resonly)
-            custom_inputs.append(custom_input_indonly)
-            custom_inputs.append(custom_input_traonly)
-            custom_inputs.append(custom_input_agronly)
-            custom_inputs.append(custom_input_eneonly)
-
         emission_configs_20percentintervals = []
         for custom_input in custom_inputs:
             emission_config = f'RES{custom_input[0][0]:0.3f}_IND{custom_input[0][1]:0.3f}_TRA{custom_input[0][2]:0.3f}_AGR{custom_input[0][3]:0.3f}_ENE{custom_input[0][4]:0.3f}'
             emission_configs_20percentintervals.append(emission_config)
-            
-        emission_configs_20percentintervals = list(set(emission_configs_20percentintervals))
-
-        custom_inputs = []
-        for emission_config in emission_configs_20percentintervals:
-            custom_input = np.array([float(num) for num in re.findall(r'\d.\d+', emission_config)]).reshape(1, -1)
-            custom_inputs.append(custom_input)
 
     if climate_cobenefits:
         custom_inputs_main = [
@@ -348,41 +307,10 @@ def main():
             custom_inputs.append(custom_input_agronly)
             custom_inputs.append(custom_input_eneonly)
 
-        # just for emulator_predictions.py as this is required in order to adjust for double emissions
-        custom_inputs_temp = custom_inputs.copy()
-        for custom_input in custom_inputs_temp:
-            custom_input_resonly = np.copy(custom_input)
-            custom_input_indonly = np.copy(custom_input)
-            custom_input_traonly = np.copy(custom_input)
-            custom_input_agronly = np.copy(custom_input)
-            custom_input_eneonly = np.copy(custom_input)
-            
-            custom_input_resonly[0][1:] = 0.0
-            custom_input_indonly[0][0]  = 0.0
-            custom_input_indonly[0][2:] = 0.0
-            custom_input_traonly[0][:2] = 0.0
-            custom_input_traonly[0][3:] = 0.0
-            custom_input_agronly[0][:3] = 0.0
-            custom_input_agronly[0][4:] = 0.0
-            custom_input_eneonly[0][:4] = 0.0
-            
-            custom_inputs.append(custom_input_resonly)
-            custom_inputs.append(custom_input_indonly)
-            custom_inputs.append(custom_input_traonly)
-            custom_inputs.append(custom_input_agronly)
-            custom_inputs.append(custom_input_eneonly)
-
         emission_configs_20percentintervals = []
         for custom_input in custom_inputs:
             emission_config = f'RES{custom_input[0][0]:0.3f}_IND{custom_input[0][1]:0.3f}_TRA{custom_input[0][2]:0.3f}_AGR{custom_input[0][3]:0.3f}_ENE{custom_input[0][4]:0.3f}'
             emission_configs_20percentintervals.append(emission_config)
-            
-        emission_configs_20percentintervals = list(set(emission_configs_20percentintervals))
-
-        custom_inputs = []
-        for emission_config in emission_configs_20percentintervals:
-            custom_input = np.array([float(num) for num in re.findall(r'\d.\d+', emission_config)]).reshape(1, -1)
-            custom_inputs.append(custom_input)
 
     if top_down_2020_baseline:
         emission_config_2020_baseline = np.array([0.604, 0.399, 0.659, 0.613, 0.724]) # matching to PM2.5 only, top 1,000
@@ -395,23 +323,28 @@ def main():
                 np.linspace(emission_config_2020_baseline[4] * 0.50, emission_config_2020_baseline[4], 6),
             )
         ).T.reshape(-1, 5)
-        custom_inputs = [np.array(emission_config).reshape(1, -1) for emission_config in emission_configs]
+        emission_configs_20percentintervals = []
+        for emission_config in emission_configs:
+            emission_configs_20percentintervals.append(f'RES{round(emission_config[0], 3):.3f}_IND{round(emission_config[1], 3):.3f}_TRA{round(emission_config[2], 3):.3f}_AGR{round(emission_config[3], 3):.3f}_ENE{round(emission_config[4], 3):.3f}')
+
+
+    emission_configs_completed = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}_adjusted/ds*{output}_popgrid_0.25deg_adjusted.nc")
+    emission_configs_completed = [f"{item[81:-38]}" for item in emission_configs_completed]
+
+    emission_configs_20percentintervals_remaining_set = set(emission_configs_20percentintervals) - set(emission_configs_completed)
+    emission_configs_remaining = [item for item in emission_configs_20percentintervals_remaining_set]
+    print(f"custom outputs remaining for {output}: {len(emission_configs_remaining)} - 20% intervals with {int(100 * len(emission_configs_20percentintervals_remaining_set) / len(emission_configs_20percentintervals))}% remaining")
+
 
     # dask bag and process
-
-    custom_inputs = custom_inputs[:5000]
-
-    print(f"predicting for {len(custom_inputs)} custom inputs ...")
-    bag_custom_inputs = db.from_sequence(custom_inputs, npartitions=n_workers)
-    bag_custom_inputs.map(custom_predicts).compute()
+    emission_configs_remaining = emission_configs_remaining[:15000]
+    print(f"predicting for {len(emission_configs_remaining)} custom outputs ...")
+    bag_emission_configs = db.from_sequence(emission_configs_remaining, npartitions=n_workers)
+    bag_emission_configs.map(adjust).compute()
 
     time_end = time.time() - time_start
-    print(
-        f"completed in {time_end:0.2f} seconds, or {time_end / 60:0.2f} minutes, or {time_end / 3600:0.2f} hours"
-    )
-    print(
-        f"average time per custom input is {time_end / len(custom_inputs):0.2f} seconds"
-    )
+    print(f"completed in {time_end:0.2f} seconds, or {time_end / 60:0.2f} minutes, or {time_end / 3600:0.2f} hours")
+    print(f"average time per custom output is {time_end / len(emission_configs_remaining):0.2f} seconds")
 
     client.close()
     cluster.close()
