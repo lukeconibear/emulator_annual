@@ -17,8 +17,8 @@ output = 'PM2_5_DRY'
 
 normal = False # 20 percent intervals
 extra = False # additional ones for the emission trend matching
-climate_cobenefits = True
-top_down_2020_baseline = False
+climate_cobenefits = False
+top_down_2020_baseline = True
 
 data_dir = sys.argv[1]
 out_dir = sys.argv[2]
@@ -124,29 +124,16 @@ def main():
                 np.linspace(0, 1.5, 16),
             )
         ).T.reshape(-1, 5)
-        custom_inputs_set = set(
-            tuple(map(float, map("{:.1f}".format, item))) for item in matrix_stacked
-        )
+        custom_inputs_set = set(tuple(map(float, map("{:.1f}".format, item))) for item in matrix_stacked)
 
-        custom_inputs_completed_filenames = glob.glob(
-            f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}/ds*{output}*"
-        )
+        custom_inputs_completed_filenames = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}/ds*{output}*")
         custom_inputs_completed_list = []
         for custom_inputs_completed_filename in custom_inputs_completed_filenames:
-            custom_inputs_completed_list.append(
-                [
-                    float(item)
-                    for item in re.findall(r"\d+\.\d+", custom_inputs_completed_filename)
-                ]
-            )
+            custom_inputs_completed_list.append([float(item) for item in re.findall(r"\d+\.\d+", custom_inputs_completed_filename)])
 
-        custom_inputs_completed_set = set(
-            tuple(item) for item in custom_inputs_completed_list
-        )
+        custom_inputs_completed_set = set(tuple(item) for item in custom_inputs_completed_list)
         custom_inputs_remaining_set = custom_inputs_set - custom_inputs_completed_set
-        custom_inputs = [
-            np.array(item).reshape(1, -1) for item in custom_inputs_remaining_set
-        ]
+        custom_inputs = [np.array(item).reshape(1, -1) for item in custom_inputs_remaining_set]
         print(f"custom inputs remaining for {output}: {len(custom_inputs)}")
 
     if extra:
@@ -394,12 +381,57 @@ def main():
                 np.linspace(emission_config_2020_baseline[3] * 0.50, emission_config_2020_baseline[3], 6),
                 np.linspace(emission_config_2020_baseline[4] * 0.50, emission_config_2020_baseline[4], 6),
             )
-        ).T.reshape(-1, 5)
-        custom_inputs = [np.array(emission_config).reshape(1, -1) for emission_config in emission_configs]
+        ).T.reshape(-1, 5)   
+        custom_inputs = [np.array(item).reshape(1, -1) for item in emission_configs]
+        # add a couple more for larger reductions in RES and IND to reach WHO-IT2
+        custom_inputs.append(np.array([[0.242, 0.160, 0.659, 0.613, 0.724]]))
+        custom_inputs.append(np.array([[0.181, 0.120, 0.659, 0.613, 0.724]]))
+        custom_inputs.append(np.array([[0.121, 0.080, 0.659, 0.613, 0.724]]))
+        custom_inputs.append(np.array([[0.060, 0.040, 0.659, 0.613, 0.724]]))
+
+        # just for emulator_predictions.py as this is required in order to adjust for double emissions
+        custom_inputs_temp = custom_inputs.copy()
+        for custom_input in custom_inputs_temp:
+            custom_input_resonly = np.copy(custom_input)
+            custom_input_indonly = np.copy(custom_input)
+            custom_input_traonly = np.copy(custom_input)
+            custom_input_agronly = np.copy(custom_input)
+            custom_input_eneonly = np.copy(custom_input)
+            custom_input_resonly[0][1:] = 0.0
+            custom_input_indonly[0][0]  = 0.0
+            custom_input_indonly[0][2:] = 0.0
+            custom_input_traonly[0][:2] = 0.0
+            custom_input_traonly[0][3:] = 0.0
+            custom_input_agronly[0][:3] = 0.0
+            custom_input_agronly[0][4:] = 0.0
+            custom_input_eneonly[0][:4] = 0.0
+            custom_inputs.append(custom_input_resonly)
+            custom_inputs.append(custom_input_indonly)
+            custom_inputs.append(custom_input_traonly)
+            custom_inputs.append(custom_input_agronly)
+            custom_inputs.append(custom_input_eneonly)
+
+        emission_configs_20percentintervals = []
+        for custom_input in custom_inputs:
+            emission_config = f'RES{custom_input[0][0]:0.3f}_IND{custom_input[0][1]:0.3f}_TRA{custom_input[0][2]:0.3f}_AGR{custom_input[0][3]:0.3f}_ENE{custom_input[0][4]:0.3f}'
+            emission_configs_20percentintervals.append(emission_config)
+
+        emission_configs_20percentintervals = set(emission_configs_20percentintervals)
+
+        custom_inputs_completed_filenames = glob.glob(f"/nobackup/earlacoa/machinelearning/data_annual/predictions/{output}/ds*{output}.nc")
+        custom_inputs_completed_list = []
+        for custom_inputs_completed_filename in custom_inputs_completed_filenames:
+            emission_config = re.findall(r"RES\d+\.\d+_IND\d+\.\d+_TRA\d+\.\d+_AGR\d+\.\d+_ENE\d+\.\d+", custom_inputs_completed_filename)
+            if len(emission_config) > 0:
+                custom_inputs_completed_list.append(emission_config)
+
+        custom_inputs_completed_set = set(item[0] for item in custom_inputs_completed_list)
+        custom_inputs_remaining_set = emission_configs_20percentintervals - custom_inputs_completed_set
+        custom_inputs = [np.array([float(n) for n in re.findall(r'\d+.\d+', item)]).reshape(1, -1) for item in custom_inputs_remaining_set]
 
     # dask bag and process
-
     custom_inputs = custom_inputs[:5000]
+    #custom_inputs = custom_inputs[5000:]
 
     print(f"predicting for {len(custom_inputs)} custom inputs ...")
     bag_custom_inputs = db.from_sequence(custom_inputs, npartitions=n_workers)

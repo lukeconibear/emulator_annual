@@ -16,8 +16,8 @@ output = "PM2_5_DRY"
 
 normal = False # 20 percent intervals
 extra = False # additional ones for the emission trend matching
-climate_cobenefits = True
-top_down_2020_baseline = False
+climate_cobenefits = False
+top_down_2020_baseline = True
 
 # --- input data ---
 # pop
@@ -323,6 +323,13 @@ def main():
                 np.linspace(emission_config_2020_baseline[4] * 0.50, emission_config_2020_baseline[4], 6),
             )
         ).T.reshape(-1, 5)
+        # add a couple more for larger reductions in RES and IND to reach WHO-IT2
+        emission_configs = list(emission_configs)
+        emission_configs.append(np.array([0.242, 0.160, 0.659, 0.613, 0.724]))
+        emission_configs.append(np.array([0.181, 0.120, 0.659, 0.613, 0.724]))
+        emission_configs.append(np.array([0.121, 0.080, 0.659, 0.613, 0.724]))
+        emission_configs.append(np.array([0.060, 0.040, 0.659, 0.613, 0.724]))
+
         emission_configs_20percentintervals = []
         for emission_config in emission_configs:
             emission_configs_20percentintervals.append(f'RES{round(emission_config[0], 3):.3f}_IND{round(emission_config[1], 3):.3f}_TRA{round(emission_config[2], 3):.3f}_AGR{round(emission_config[3], 3):.3f}_ENE{round(emission_config[4], 3):.3f}')
