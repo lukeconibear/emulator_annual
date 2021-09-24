@@ -426,7 +426,7 @@ clips = joblib.load('/nobackup/earlacoa/machinelearning/data_annual/clips.joblib
 
 with np.load("/nobackup/earlacoa/health/data/population-count-0.25deg.npz") as ds:
     pop_z_2015 = ds["pop_z_2015"]
-    pop_xx = ds["pop_yy"]
+    pop_xx = ds["pop_xx"]
     pop_yy = ds["pop_yy"]
 
 with np.load(
