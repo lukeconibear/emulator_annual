@@ -18,9 +18,11 @@ output = "PM2_5_DRY"
 #output = "o3_6mDM8h"
 
 normal = False # 20 percent intervals
-extra = False # additional ones for the emission trend matching
+extra = True # additional ones for the emission trend matching
+if extra:
+    year = '2019'
 climate_cobenefits = False
-top_down_2020_baseline = True
+top_down_2020_baseline = False
 
 # -----------
 # functions
@@ -79,14 +81,14 @@ def dict_to_typed_dict(dict_normal):
     return typed_dict
 
 
-def outcome_per_age_ncdlri(pop_z_2015, age_grid, age, bm_ncd, bm_lri, outcome, metric, pm25_clipped, alpha, mu, pi, theta, theta_error):
+def outcome_per_age_ncdlri(pop, age_grid, age, bm_ncd, bm_lri, outcome, metric, pm25_clipped, alpha, mu, pi, theta, theta_error):
     if metric == 'mean':
         theta = theta
     elif metric == 'lower':
         theta = theta - theta_error
     elif metric == 'upper':
         theta = theta + theta_error
-    return (pop_z_2015 * age_grid * (bm_ncd + bm_lri) * (1 - 1 / (np.exp(np.log(1 + pm25_clipped / alpha) / (1 + np.exp((mu - pm25_clipped) / pi)) * theta))))
+    return (pop * age_grid * (bm_ncd + bm_lri) * (1 - 1 / (np.exp(np.log(1 + pm25_clipped / alpha) / (1 + np.exp((mu - pm25_clipped) / pi)) * theta))))
 
 
 def outcome_total(hia_ncdlri, outcome, metric):
@@ -112,16 +114,16 @@ def dalys_total(hia_ncdlri, metric):
     )
 
 
-def rates_total(hia_ncdlri, outcome, metric, pop_z_2015):
-    return hia_ncdlri[f"{outcome}_ncdlri_{metric}_total"] * (100000 / pop_z_2015)
+def rates_total(hia_ncdlri, outcome, metric, pop):
+    return hia_ncdlri[f"{outcome}_ncdlri_{metric}_total"] * (100000 / pop)
 
 
-def calc_hia_gemm_ncdlri(pm25, pop_z_2015, dict_ages, dict_bm, dict_gemm):
+def calc_hia_gemm_ncdlri(pm25, pop, dict_ages, dict_bm, dict_gemm):
     """ health impact assessment using the GEMM for NCD+LRI """
     """ inputs are exposure to annual-mean PM2.5 on a global grid at 0.25 degrees """
     """ estimated for all ages individually, with outcomes separately """
     """ risks include China cohort """
-    """ call example: calc_hia_gemm_ncdlri(pm25_ctl, pop_z_2015, dict_ages, dict_bm, dict_gemm) """
+    """ call example: calc_hia_gemm_ncdlri(pm25_ctl, pop, dict_ages, dict_bm, dict_gemm) """
     # inputs
     ages = [
         "25_29",
@@ -143,8 +145,8 @@ def calc_hia_gemm_ncdlri(pm25, pop_z_2015, dict_ages, dict_bm, dict_gemm):
     pm25_clipped = (pm25 - lcc).clip(min=0)
     # health impact assessment
     hia_ncdlri = {}
-    hia_ncdlri.update({"pop": pop_z_2015})
-    hia_ncdlri.update({"pm25_popweighted": pop_z_2015 * pm25})
+    hia_ncdlri.update({"pop": pop})
+    hia_ncdlri.update({"pm25_popweighted": pop * pm25})
     for outcome in outcomes:
         for metric in metrics:
             for age in ages:
@@ -152,8 +154,8 @@ def calc_hia_gemm_ncdlri(pm25, pop_z_2015, dict_ages, dict_bm, dict_gemm):
                 hia_ncdlri.update(
                     {
                         f"{outcome}_ncdlri_{metric}_{age}": outcome_per_age_ncdlri(
-                            pop_z_2015,
-                            dict_ages[f"cf_age_fraction_{age}_grid"],
+                            pop,
+                            dict_ages[f"age_fraction_{metric}_{age}_both"],
                             age,
                             dict_bm[f"i_{outcome}_ncd_both_{metric}_{age}"],
                             dict_bm[f"i_{outcome}_lri_both_{metric}_{age}"],
@@ -190,7 +192,7 @@ def calc_hia_gemm_ncdlri(pm25, pop_z_2015, dict_ages, dict_bm, dict_gemm):
         for metric in metrics:
             # rates_total
             hia_ncdlri.update(
-                    {f"{outcome}_rate_ncdlri_{metric}_total": rates_total(hia_ncdlri, outcome, metric, pop_z_2015)}
+                    {f"{outcome}_rate_ncdlri_{metric}_total": rates_total(hia_ncdlri, outcome, metric, pop)}
             )
 
     return hia_ncdlri
@@ -203,11 +205,11 @@ def create_attribute_fraction(value, dict_af):
 create_attribute_fraction = np.vectorize(create_attribute_fraction)
 
 
-def calc_hia_gbd2017_o3(o3, pop_z_2015, dict_ages, dict_bm, dict_af):
+def calc_hia_gbd2017_o3(o3, pop, dict_ages, dict_bm, dict_af):
     """ health impact assessment using the GBD2017 function for O3 """
     """ inputs are exposure to annual-mean, daily maximum, 8-hour, O3 concentrations (ADM8h) on a global grid at 0.25 degrees """
     """ estimated for all ages individually """
-    """ call example: calc_hia_gbd2017_o3(o3_ctl, pop_z_2015, dict_ages, dict_bm, dict_af) """
+    """ call example: calc_hia_gbd2017_o3(o3_ctl, pop, dict_ages, dict_bm, dict_af) """
     # inputs
     ages = [
         "25_29",
@@ -227,8 +229,8 @@ def calc_hia_gbd2017_o3(o3, pop_z_2015, dict_ages, dict_bm, dict_af):
     metrics = ["mean", "upper", "lower"]
     # health impact assessment
     hia_o3 = {}
-    hia_o3.update({"pop": pop_z_2015})
-    hia_o3.update({"o3_popweighted": pop_z_2015 * o3})
+    hia_o3.update({"pop": pop})
+    hia_o3.update({"o3_popweighted": pop * o3})
 
     # attributable fraction
     o3_rounded = np.nan_to_num(np.around(o3, 1)) # 1dp for the nearest af
@@ -244,8 +246,8 @@ def calc_hia_gbd2017_o3(o3, pop_z_2015, dict_ages, dict_bm, dict_af):
                 # mort, yll, yld - age
                 hia_o3.update(
                     {
-                        f"{outcome}_copd_{metric}_{age}": pop_z_2015
-                        * dict_ages[f"cf_age_fraction_{age}_grid"]
+                        f"{outcome}_copd_{metric}_{age}": pop
+                        * dict_ages[f"age_fraction_{metric}_{age}_both"]
                         * dict_bm[f"i_{outcome}_copd_both_{metric}_{age}"]
                         * af[metric]
                     }
@@ -292,7 +294,7 @@ def calc_hia_gbd2017_o3(o3, pop_z_2015, dict_ages, dict_bm, dict_af):
             hia_o3.update(
                 {
                     f"{outcome}_rate_copd_{metric}_total": hia_o3[f"{outcome}_copd_{metric}_total"] 
-                    * (100_000 / pop_z_2015)
+                    * (100_000 / pop)
                 }
             )
 
@@ -310,7 +312,7 @@ def health_impact_assessment_pm25(custom_output):
 
     xx, yy = np.meshgrid(lon, lat)
 
-    hia_ncdlri = calc_hia_gemm_ncdlri(pm25, pop_z_2015, dict_ages, dict_bm, dict_gemm)
+    hia_ncdlri = calc_hia_gemm_ncdlri(pm25, pop, dict_ages, dict_bm, dict_gemm)
     #np.savez_compressed(
     #    f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/hia_{output}_{custom_output}_adjusted_scaled.npz",
     #    hia_ncdlri=hia_ncdlri,
@@ -370,7 +372,7 @@ def health_impact_assessment_o3(custom_output):
 
     xx, yy = np.meshgrid(lon, lat)
 
-    hia_o3 = calc_hia_gbd2017_o3(o3_6mDM8h, pop_z_2015, dict_ages, dict_bm, dict_af)
+    hia_o3 = calc_hia_gbd2017_o3(o3_6mDM8h, pop, dict_ages, dict_bm, dict_af)
     #np.savez_compressed(
     #    f"/nobackup/earlacoa/machinelearning/data_annual/health_impact_assessments/{output}_adjusted_scaled/hia_{output}_{custom_output}_adjusted_scaled.npz",
     #    hia_o3=hia_o3,
@@ -424,43 +426,55 @@ def health_impact_assessment_o3(custom_output):
 # import data
 clips = joblib.load('/nobackup/earlacoa/machinelearning/data_annual/clips.joblib')
 
-with np.load("/nobackup/earlacoa/health/data/population-count-0.25deg.npz") as ds:
-    pop_z_2015 = ds["pop_z_2015"]
-    pop_xx = ds["pop_xx"]
-    pop_yy = ds["pop_yy"]
+if extra:
+    # for each year, set the corresponding pop, age, and bm
+    with xr.open_dataset(f'/nobackup/earlacoa/health/data/gpw_v4_population_count_rev11_{year}_0.25deg_crop.nc') as ds:
+        pop = ds['pop'].values
+        pop_lon = ds['lon'].values
+        pop_lat = ds['lat'].values
 
-with np.load(
-    "/nobackup/earlacoa/health/data/GBD2017_population_age_fraction_global_2015_array_0.25deg.npz"
-) as file_age:
-    dict_ages = dict(
-        zip(
-            [key for key in file_age],
-            [file_age[key].astype("float32") for key in file_age],
-        )
-    )
+    pop_xx, pop_yy = np.meshgrid(pop_lon, pop_lat)
 
-file_bm_list = []
-for disease in ["copd", "ncd", "lri"]:
-    file_bm_list.extend(
-        glob.glob(
-            "/nobackup/earlacoa/health/data/GBD2017_baseline_mortality*"
-            + disease
-            + "*0.25deg.npz"
-        )
-    )
+    dict_ages = {}
+    with xr.open_dataset(f'/nobackup/earlacoa/health/data/GBD2019_population_{year}_0.25deg.nc') as ds:
+        for age in list(ds.keys()):
+            dict_ages.update({age: ds[age].values.astype('float32')})
 
-dict_bm = {}
-for file_bm_each in file_bm_list:
-    file_bm = np.load(file_bm_each)
-    dict_bm_each = dict(
-        zip(
-            [key for key in file_bm],
-            [file_bm[key].astype("float32") for key in file_bm],
-        )
-    )
-    dict_bm.update(dict_bm_each)
+    file_bm_list = []
+    for disease in ["copd", "ncd", "lri"]:
+        file_bm_list.extend(glob.glob(f"/nobackup/earlacoa/health/data/GBD2019_baseline_mortality_*{disease}_*{year}_0.25deg.nc"))
 
-del file_bm_list, file_bm_each, file_bm, dict_bm_each
+
+    dict_bm = {}
+    for file_bm in file_bm_list:
+        with xr.open_dataset(file_bm) as ds:
+            for bm in list(ds.keys()):
+                dict_bm.update({bm: ds[bm].values.astype('float32')})
+else: # only keeping these so can replicate results for annual and climate papers
+    with xr.open_dataset(f'/nobackup/earlacoa/health/data/gpw_v4_population_count_rev11_2015_0.25deg_crop.nc') as ds:
+        pop = ds['pop'].values
+        pop_lon = ds['lon'].values
+        pop_lat = ds['lat'].values
+
+    pop_xx, pop_yy = np.meshgrid(pop_lon, pop_lat)
+
+    dict_ages = {}
+    with xr.open_dataset(f'/nobackup/earlacoa/health/data/GBD2019_population_2015_0.25deg.nc') as ds:
+        for age in list(ds.keys()):
+            dict_ages.update({age: ds[age].values.astype('float32')})
+
+
+    file_bm_list = []
+    for disease in ["copd", "ncd", "lri"]:
+        file_bm_list.extend(glob.glob(f"/nobackup/earlacoa/health/data/GBD2019_baseline_mortality_*{disease}_*2015_0.25deg.nc"))
+
+
+    dict_bm = {}
+    for file_bm in file_bm_list:
+        with xr.open_dataset(file_bm) as ds:
+            for bm in list(ds.keys()):
+                dict_bm.update({bm: ds[bm].values.astype('float32')})
+
 
 dict_af = {}
 dict_af.update({'mean':  joblib.load('/nobackup/earlacoa/health/data/o3_dict_af_mean.joblib')})
@@ -488,13 +502,6 @@ with np.load(
     )
 
 dict_gemm.update(dict_gemm_2)
-#return clips, pop_z_2015, pop_xx, pop_yy, dict_ages, dict_bm, dict_af, dict_gemm
-#clips, pop_z_2015, pop_xx, pop_yy, dict_ages, dict_bm, dict_af, dict_gemm = import_data()
-
-# convert to typed dicts
-#dict_ages = dict_to_typed_dict(dict_ages)
-#dict_gemm = dict_to_typed_dict(dict_gemm)
-#dict_bm = dict_to_typed_dict(dict_bm)
 # -----------
 
 
@@ -525,7 +532,7 @@ def main():
             f"-pe smp {n_processes}",
             f"-l disk=48G",
         ],
-        local_directory=os.sep.join([os.environ.get("PWD"), "dask-hia-pm-space"]),
+        local_directory=os.sep.join([os.environ.get("PWD"), "dask-hia-ozone-space"]),
     )
 
     client = Client(cluster)
@@ -575,34 +582,66 @@ def main():
             print(f"custom outputs remaining for {output}: {len(custom_outputs_remaining)} - 20% intervals with {int(100 * len(emission_configs_20percentintervals_remaining_set) / len(emission_configs_20percentintervals))}% remaining")
 
     if extra:
-        custom_inputs_main = [
-            np.array([[1.15, 1.27, 0.98, 0.98, 1.36]]), # bottom-up 2010
-            np.array([[1.19, 1.30, 1.01, 1.01, 1.46]]), # bottom-up 2011
-            np.array([[1.20, 1.30, 1.01, 1.02, 1.39]]), # bottom-up 2012
-            np.array([[1.13, 1.29, 1.02, 1.01, 1.29]]), # bottom-up 2013
-            np.array([[1.06, 1.12, 0.99, 1.01, 1.12]]), # bottom-up 2014
-            np.array([[0.92, 0.84, 0.97, 0.99, 0.94]]), # bottom-up 2016
-            np.array([[0.84, 0.81, 0.99, 0.99, 0.89]]), # bottom-up 2017
-            np.array([[0.76 , 0.934, 0.735, 0.683, 0.708]]),
-            np.array([[0.704, 0.786, 0.73 , 0.659, 0.6  ]]),
-            np.array([[0.712, 0.703, 0.725, 0.676, 0.649]]),
-            np.array([[0.739, 0.668, 0.701, 0.686, 0.682]]),
-            np.array([[0.67 , 0.609, 0.709, 0.621, 0.661]]),
-            np.array([[0.744, 0.904, 0.778, 0.678, 0.716]]),
-            np.array([[0.771, 0.835, 0.711, 0.685, 0.544]]),
-            np.array([[0.647, 0.945, 0.746, 0.588, 0.473]]),
-            np.array([[0.657, 0.745, 0.714, 0.613, 0.591]]),
-            np.array([[0.582, 0.7  , 0.672, 0.5  , 0.492]]),
-            np.array([[0.803, 0.835, 0.742, 0.71 , 0.717]]),
-            np.array([[0.721, 0.863, 0.712, 0.74 , 0.709]]),
-            np.array([[0.661, 0.674, 0.694, 0.742, 0.715]]),
-            np.array([[0.701, 0.642, 0.669, 0.681, 0.679]]),
-            np.array([[0.604, 0.399, 0.659, 0.613, 0.724]]),
-            np.array([[0.769, 1.009, 0.697, 0.69 , 0.72 ]]),
-            np.array([[0.824, 0.759, 0.767, 0.641, 0.429]]),
-            np.array([[0.858, 1.092, 0.794, 0.604, 0.475]]),
-            np.array([[0.8  , 0.987, 0.648, 0.57 , 0.493]]),
-            np.array([[0.867, 0.957, 0.677, 0.558, 0.477]])
+        if year == '2010':
+            custom_inputs_main = [
+                np.array([[1.15, 1.27, 0.98, 0.98, 1.36]]), # bottom-up 2010
+        ]
+        elif year == '2011':
+            custom_inputs_main = [
+                np.array([[1.19, 1.30, 1.01, 1.01, 1.46]]), # bottom-up 2011
+        ]
+        elif year == '2012':
+            custom_inputs_main = [
+                np.array([[1.20, 1.30, 1.01, 1.02, 1.39]]), # bottom-up 2012
+        ]
+        elif year == '2013':
+            custom_inputs_main = [
+                np.array([[1.13, 1.29, 1.02, 1.01, 1.29]]), # bottom-up 2013
+        ]
+        elif year == '2014':
+            custom_inputs_main = [
+                np.array([[1.06, 1.12, 0.99, 1.01, 1.12]]), # bottom-up 2014
+        ]
+        elif year == '2015':
+            custom_inputs_main = [
+                np.array([[1.0, 1.0, 1.0, 1.0, 1.0]]), # control
+        ]
+        elif year == '2016':
+            custom_inputs_main = [
+                np.array([[0.92, 0.84, 0.97, 0.99, 0.94]]), # bottom-up 2016
+                np.array([[0.76 , 0.934, 0.735, 0.683, 0.708]]), # top-down 2016 - both
+                np.array([[0.744, 0.904, 0.778, 0.678, 0.716]]), # top-down 2016 - either
+                np.array([[0.803, 0.835, 0.742, 0.71 , 0.717]]), # top-down 2016 - pm25 only
+                np.array([[0.769, 1.009, 0.697, 0.69 , 0.72 ]]), # top-down 2016 - o3 only
+        ]
+        elif year == '2017':
+            custom_inputs_main = [
+                np.array([[0.84, 0.81, 0.99, 0.99, 0.89]]), # bottom-up 2017
+                np.array([[0.704, 0.786, 0.73 , 0.659, 0.6  ]]), # top-down 2017 - both
+                np.array([[0.771, 0.835, 0.711, 0.685, 0.544]]), # top-down 2017 - either
+                np.array([[0.721, 0.863, 0.712, 0.74 , 0.709]]), # top-down 2017 - pm25 only
+                np.array([[0.824, 0.759, 0.767, 0.641, 0.429]]), # top-down 2017 - o3 only
+        ]
+        elif year == '2018':
+            custom_inputs_main = [
+                np.array([[0.712, 0.703, 0.725, 0.676, 0.649]]), # top-down 2018 - both
+                np.array([[0.647, 0.945, 0.746, 0.588, 0.473]]), # top-down 2018 - either
+                np.array([[0.661, 0.674, 0.694, 0.742, 0.715]]), # top-down 2018 - pm25 only
+                np.array([[0.858, 1.092, 0.794, 0.604, 0.475]]), # top-down 2018 - o3 only
+        ]
+        elif year == '2019':
+            custom_inputs_main = [
+                np.array([[0.739, 0.668, 0.701, 0.686, 0.682]]), # top-down 2019 - both
+                np.array([[0.657, 0.745, 0.714, 0.613, 0.591]]), # top-down 2019 - either
+                np.array([[0.701, 0.642, 0.669, 0.681, 0.679]]), # top-down 2019 - pm25 only
+                np.array([[0.8  , 0.987, 0.648, 0.57 , 0.493]]), # top-down 2019 - o3 only
+        ]
+        elif year == '2020':
+            custom_inputs_main = [
+                np.array([[0.67 , 0.609, 0.709, 0.621, 0.661]]), # top-down 2020 - both
+                np.array([[0.582, 0.7  , 0.672, 0.5  , 0.492]]), # top-down 2020 - either
+                np.array([[0.604, 0.399, 0.659, 0.613, 0.724]]), # top-down 2020 - pm25 only
+                np.array([[0.867, 0.957, 0.677, 0.558, 0.477]]), # top-down 2020 - o3 only
         ]
         custom_inputs = []
         for custom_input in custom_inputs_main:
@@ -616,36 +655,22 @@ def main():
             custom_input_notra = np.copy(custom_input)
             custom_input_noagr = np.copy(custom_input)
             custom_input_noene = np.copy(custom_input)
-            custom_input_resonly = np.copy(custom_input)
-            custom_input_indonly = np.copy(custom_input)
-            custom_input_traonly = np.copy(custom_input)
-            custom_input_agronly = np.copy(custom_input)
-            custom_input_eneonly = np.copy(custom_input)
-
+            
             custom_input_res[0][1:] = 1.0
-            custom_input_ind[0][0]  = 1.0
+            custom_input_ind[0][0] = 1.0
             custom_input_ind[0][2:] = 1.0
             custom_input_tra[0][:2] = 1.0
             custom_input_tra[0][3:] = 1.0
             custom_input_agr[0][:3] = 1.0
             custom_input_agr[0][4:] = 1.0
             custom_input_ene[0][:4] = 1.0
-
+            
             custom_input_nores[0][0] = 0.0
             custom_input_noind[0][1] = 0.0
             custom_input_notra[0][2] = 0.0
             custom_input_noagr[0][3] = 0.0
             custom_input_noene[0][4] = 0.0
             
-            custom_input_resonly[0][1:] = 0.0
-            custom_input_indonly[0][0]  = 0.0
-            custom_input_indonly[0][2:] = 0.0
-            custom_input_traonly[0][:2] = 0.0
-            custom_input_traonly[0][3:] = 0.0
-            custom_input_agronly[0][:3] = 0.0
-            custom_input_agronly[0][4:] = 0.0
-            custom_input_eneonly[0][:4] = 0.0
-
             custom_inputs.append(custom_input)
             custom_inputs.append(custom_input_res)
             custom_inputs.append(custom_input_ind)
@@ -657,11 +682,6 @@ def main():
             custom_inputs.append(custom_input_notra)
             custom_inputs.append(custom_input_noagr)
             custom_inputs.append(custom_input_noene)
-            custom_inputs.append(custom_input_resonly)
-            custom_inputs.append(custom_input_indonly)
-            custom_inputs.append(custom_input_traonly)
-            custom_inputs.append(custom_input_agronly)
-            custom_inputs.append(custom_input_eneonly)
 
         custom_outputs_remaining = []
         for custom_input in custom_inputs:
@@ -760,10 +780,10 @@ def main():
         ).T.reshape(-1, 5)
         # add a couple more for larger reductions in RES and IND to reach WHO-IT2
         emission_configs = list(emission_configs)
-        emission_configs.append(np.array([0.242, 0.160, 0.659, 0.613, 0.724]))
-        emission_configs.append(np.array([0.181, 0.120, 0.659, 0.613, 0.724]))
-        emission_configs.append(np.array([0.121, 0.080, 0.659, 0.613, 0.724]))
-        emission_configs.append(np.array([0.060, 0.040, 0.659, 0.613, 0.724]))
+        emission_configs.append(np.array([[0.242, 0.160, 0.659, 0.613, 0.724]]))
+        emission_configs.append(np.array([[0.181, 0.120, 0.659, 0.613, 0.724]]))
+        emission_configs.append(np.array([[0.121, 0.080, 0.659, 0.613, 0.724]]))
+        emission_configs.append(np.array([[0.060, 0.040, 0.659, 0.613, 0.724]]))
 
         emission_configs_total = []
         for emission_config in emission_configs:
@@ -779,12 +799,12 @@ def main():
         custom_outputs_remaining = [item for item in emission_configs_remaining_set]
         print(f"custom outputs remaining: {len(custom_outputs_remaining)}, {int(100 * len(emission_configs_remaining_set) / len(emission_configs_total))}%")
 
+
     # --------------------------------------------------
 
     # dask bag and process
     # run in 10 chunks over 10 cores, each chunk taking 2 minutes
     custom_outputs_remaining = custom_outputs_remaining[0:n_outputs]
-    #custom_outputs_remaining = custom_outputs_remaining[3*n_outputs:]  
     print(f"predicting for {len(custom_outputs_remaining)} custom outputs ...")
     bag_custom_outputs = db.from_sequence(
         custom_outputs_remaining, npartitions=n_workers
